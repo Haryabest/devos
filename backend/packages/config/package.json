@@ -1,0 +1,19 @@
+{
+  "name": "@devos/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["tsconfig", "eslint"],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/react.json": "./tsconfig/react.json",
+    "./eslint/base.js": "./eslint/base.js",
+    "./eslint/react.js": "./eslint/react.js",
+    "./eslint/node.js": "./eslint/node.js"
+  },
+  "scripts": {
+    "lint": "echo \"config: nothing to lint\"",
+    "typecheck": "echo \"config: nothing to typecheck\""
+  }
+}

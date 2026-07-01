@@ -1,0 +1,9 @@
+{
+  "extends": "@devos/config/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "prisma/seed.ts"]
+}
