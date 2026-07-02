@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -14,19 +16,17 @@ import {
   RichEditorToolbar,
   useRichEditor,
 } from '@/components/ui/rich-editor';
-import { AttachmentSidebar } from '@/components/ui/attachment-sidebar';
 import { ConfirmDeleteDialog, type DeleteConfirmState } from '@/components/ui/confirm-delete-dialog';
 import * as Icons from '@/components/ui/icons';
+import { BreadcrumbBack } from '@/components/layout/breadcrumb-back';
+import { PageTopBar } from '@/components/layout/page-top-bar';
 import { cn } from '@/lib/utils';
 import { useProjectsStore } from '@/stores/projects-store';
-import {
-  PRIORITIES,
-  PRIORITY_LABEL,
-  useTasksStore,
-} from '@/stores/tasks-store';
+import { PRIORITIES, PRIORITY_LABEL, STATUS_LABEL, useTasksStore } from '@/stores/tasks-store';
 import type { Priority } from '@/shared/types';
 import { PRIORITY_DOT } from '@/features/tasks/constants';
-import { SubtaskList, AddSubtask } from '@/features/tasks/components/subtask-list';
+import { TaskDetailSidePanel } from '@/features/tasks/components/task-detail-side-panel';
+import { DatePicker } from '@/components/ui/date-picker';
 
 export function ProjectTaskDetailPage() {
   const { projectId, taskId } = useParams();
@@ -42,6 +42,9 @@ export function ProjectTaskDetailPage() {
   const addSub = useTasksStore((s) => s.add);
   const addAtt = useTasksStore((s) => s.addAttachment);
   const removeAtt = useTasksStore((s) => s.removeAttachment);
+  const addComment = useTasksStore((s) => s.addComment);
+  const addDependency = useTasksStore((s) => s.addDependency);
+  const removeDependency = useTasksStore((s) => s.removeDependency);
 
   const [draftTitle, setDraftTitle] = useState(task?.title ?? '');
   const [draftDescription, setDraftDescription] = useState(task?.description ?? '');
@@ -115,6 +118,7 @@ export function ProjectTaskDetailPage() {
   }
 
   const column = columns.find((c) => c.id === task.columnId);
+  const siblingTasks = allTasks.filter((t) => t.projectId === projectId && t.parentId === null);
 
   function handleDelete() {
     setDeleteConfirm({
@@ -129,39 +133,28 @@ export function ProjectTaskDetailPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/60 px-6 py-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(`/projects/${projectId}/tasks`)}
-          className="mb-2 gap-2 text-muted-foreground"
-        >
-          <Icons.ArrowLeft className="h-4 w-4" />
-          Задачи · {project.name}
-        </Button>
+      <PageTopBar
+        breadcrumb={
+          <BreadcrumbBack label="Задачи" to={`/projects/${projectId}/tasks`} />
+        }
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Задача</h1>
           <RichEditorToolbar controller={editor} className="max-w-full overflow-x-auto" />
         </div>
-      </div>
+      </PageTopBar>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-3xl px-8 py-8">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-4xl px-8 py-8">
             <div className="mb-4 flex items-start gap-3">
-              <button
-                onClick={() => update(task.id, { done: !task.done })}
-                className={cn(
-                  'mt-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                  task.done
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-input',
-                )}
+              <Checkbox
+                checked={task.done}
+                onCheckedChange={(checked) => update(task.id, { done: checked === true })}
+                className="mt-2"
                 aria-label="Отметить выполненным"
-              >
-                {task.done && <Icons.Check className="h-3.5 w-3.5" />}
-              </button>
-              <input
+              />
+              <Input
                 value={draftTitle}
                 onChange={(e) => {
                   setDraftTitle(e.target.value);
@@ -169,7 +162,7 @@ export function ProjectTaskDetailPage() {
                 }}
                 placeholder="Без названия"
                 className={cn(
-                  'flex-1 border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/50',
+                  'h-auto flex-1 border-0 bg-transparent px-0 text-3xl font-bold shadow-none focus-visible:ring-0',
                   task.done && 'text-muted-foreground line-through',
                 )}
               />
@@ -183,12 +176,12 @@ export function ProjectTaskDetailPage() {
               {column && (
                 <span className="ml-2 inline-flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
-                  {column.name}
+                  {STATUS_LABEL[task.status] ?? column.name}
                 </span>
               )}
             </p>
 
-            <div className="mb-6 flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Select
                 value={task.priority}
                 onValueChange={(v) => update(task.id, { priority: v as Priority })}
@@ -221,46 +214,57 @@ export function ProjectTaskDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="w-36">
+                <DatePicker
+                  value={task.startAt}
+                  onChange={(v) => update(task.id, { startAt: v })}
+                  placeholder="Начало"
+                />
+              </div>
+              <div className="w-36">
+                <DatePicker
+                  value={task.dueAt}
+                  onChange={(v) => update(task.id, { dueAt: v })}
+                  placeholder="Срок"
+                />
+              </div>
             </div>
 
-            <RichEditorBody
-              controller={editor}
-              placeholder="Опишите задачу: контекст, шаги, критерии…"
-            />
-
-            <div className="mt-8 space-y-2 border-t border-border/40 pt-6">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Icons.Layers className="h-3.5 w-3.5" />
-                Подзадачи
-              </div>
-              <SubtaskList
-                subtasks={subtasks}
-                onRequestRemove={(s) =>
-                  setDeleteConfirm({
-                    title: 'Удалить подзадачу?',
-                    description: `«${s.title || 'Без названия'}» будет удалена.`,
-                    onConfirm: () => remove(s.id),
-                  })
-                }
-              />
-              <AddSubtask
-                onAdd={(title) =>
-                  addSub({
-                    projectId: task.projectId,
-                    columnId: task.columnId,
-                    parentId: task.id,
-                    title,
-                  })
-                }
+            <div className="mt-6">
+              <RichEditorBody
+                controller={editor}
+                placeholder="Опишите задачу: контекст, шаги, критерии…"
+                className="min-h-[calc(100vh-18rem)]"
               />
             </div>
           </div>
         </div>
 
-        <AttachmentSidebar
+        <TaskDetailSidePanel
+          task={task}
+          subtasks={subtasks}
+          siblingTasks={siblingTasks}
           attachments={task.attachments}
-          onAdd={(a) => addAtt(task.id, a)}
-          onRemove={(aid) => removeAtt(task.id, aid)}
+          onAddSubtask={(title) =>
+            addSub({
+              projectId: task.projectId,
+              columnId: task.columnId,
+              parentId: task.id,
+              title,
+            })
+          }
+          onRequestRemoveSubtask={(s) =>
+            setDeleteConfirm({
+              title: 'Удалить подзадачу?',
+              description: `«${s.title || 'Без названия'}» будет удалена.`,
+              onConfirm: () => remove(s.id),
+            })
+          }
+          onAddComment={(text) => addComment(task.id, text)}
+          onAddDependency={(id) => addDependency(task.id, id)}
+          onRemoveDependency={(id) => removeDependency(task.id, id)}
+          onAddAttachment={(a) => addAtt(task.id, a)}
+          onRemoveAttachment={(aid) => removeAtt(task.id, aid)}
         />
       </div>
 

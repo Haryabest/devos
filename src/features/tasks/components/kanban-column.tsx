@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import * as Icons from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
@@ -13,7 +12,7 @@ import type { Task, TaskColumn } from '@/shared/types';
 export interface KanbanColumnProps {
   column: TaskColumn;
   tasks: Task[];
-  onAdd: (title: string) => void;
+  onAdd: (columnId: string) => void;
   onRename: (name: string) => void;
   onRecolor: (color: string) => void;
   onRemove: () => void;
@@ -32,8 +31,6 @@ export function KanbanColumn({
   onOpenTask,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
-  const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(column.name);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,14 +38,6 @@ export function KanbanColumn({
   const sorted = useMemo(() => [...tasks].sort((a, b) => a.order - b.order), [tasks]);
   const allTasks = useTasksStore((s) => s.tasks);
   const childCount = (id: string) => allTasks.filter((t) => t.parentId === id).length;
-
-  function submitAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    onAdd(title);
-    setTitle('');
-    setAdding(false);
-  }
 
   function commitName() {
     const v = name.trim();
@@ -164,7 +153,7 @@ export function KanbanColumn({
               onRemove={() => onRemoveTask(t)}
             />
           ))}
-          {sorted.length === 0 && !adding && (
+          {sorted.length === 0 && (
             <p className="px-2 py-6 text-center text-xs text-muted-foreground">
               Перетащите сюда задачу или добавьте новую.
             </p>
@@ -173,43 +162,15 @@ export function KanbanColumn({
       </SortableContext>
 
       <div className="p-2">
-        {adding ? (
-          <form onSubmit={submitAdd} className="space-y-2">
-            <Input
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Название задачи…"
-            />
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={!title.trim()} className="gap-1.5">
-                <Icons.Plus className="h-3.5 w-3.5" />
-                Добавить
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setAdding(false);
-                  setTitle('');
-                }}
-              >
-                Отмена
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setAdding(true)}
-            className="w-full justify-start gap-1.5 text-muted-foreground"
-          >
-            <Icons.Plus className="h-3.5 w-3.5" />
-            Новая задача
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onAdd(column.id)}
+          className="w-full justify-start gap-1.5 text-muted-foreground"
+        >
+          <Icons.Plus className="h-3.5 w-3.5" />
+          Новая задача
+        </Button>
       </div>
     </div>
   );

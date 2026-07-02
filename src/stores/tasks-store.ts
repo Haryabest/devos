@@ -3,6 +3,8 @@ export {
   COLUMN_COLORS,
   PRIORITIES,
   PRIORITY_LABEL,
+  STATUS_LABEL,
+  TASK_STATUSES,
   seedColumns,
   type NewTask,
   type NewColumn,

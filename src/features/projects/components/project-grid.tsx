@@ -29,6 +29,7 @@ export function ProjectGrid({
   groups,
   onOpen,
   onDelete,
+  deleteAction = 'delete',
 }: {
   projects: Project[];
   tasks: ReturnType<typeof useTasksStore.getState>['tasks'];
@@ -36,10 +37,12 @@ export function ProjectGrid({
   endpoints: ReturnType<typeof useApiStore.getState>['endpoints'];
   groups: ReturnType<typeof useGroupsStore.getState>['groups'];
   onOpen: (id: string) => void;
-  onDelete: (p: Project) => void;
+  onDelete?: (p: Project) => void;
+  /** detach — кнопка отвязывает проект вместо удаления */
+  deleteAction?: 'delete' | 'detach';
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {projects.map((p) => {
         const group = groups.find((g) => g.id === p.groupId);
         const taskCount = tasks.filter((t) => t.projectId === p.id && t.parentId === null).length;
@@ -61,18 +64,24 @@ export function ProjectGrid({
                   />
                   <span className="truncate">{p.name}</span>
                 </CardTitle>
+                {onDelete && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                  aria-label="Удалить проект"
+                  aria-label={deleteAction === 'detach' ? 'Отвязать проект' : 'Удалить проект'}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete(p);
                   }}
                 >
-                  <Icons.Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  {deleteAction === 'detach' ? (
+                    <Icons.X className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <Icons.Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
                 </Button>
+                )}
               </div>
               <CardDescription className="line-clamp-2 min-h-[2.5rem]">
                 {p.description || 'Без описания'}

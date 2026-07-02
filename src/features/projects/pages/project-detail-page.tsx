@@ -1,19 +1,19 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { BreadcrumbBack } from '@/components/layout/breadcrumb-back';
 import * as Icons from '@/components/ui/icons';
 import { useProjectsStore } from '@/stores/projects-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
 import { useApiStore } from '@/stores/api-store';
-import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog';
 import { ProjectShareDialog } from '@/features/projects/components/project-share-dialog';
 import { ProjectDetailHeader } from '@/features/projects/components/project-detail-header';
-import { ProjectMetaSection } from '@/features/projects/components/project-meta-section';
 import { ProjectFigmaCard } from '@/features/projects/components/project-figma-card';
 import { ProjectModulesSection } from '@/features/projects/components/project-modules-section';
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
+import { ProjectDeadlinesCard } from '@/features/projects/components/project-deadlines-card';
+import { ProjectGitDashboard } from '@/features/projects/components/project-git-dashboard';
 
 export function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -25,10 +25,6 @@ export function ProjectDetailPage() {
   const docCount = useDocsStore((s) => s.docs.filter((d) => d.projectId === projectId).length);
   const apiCount = useApiStore((s) => s.endpoints.filter((e) => e.projectId === projectId).length);
 
-  const [editingLinks, setEditingLinks] = useState(false);
-  const [figmaDraft, setFigmaDraft] = useState('');
-  const [gitDraft, setGitDraft] = useState('');
-  const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -41,83 +37,49 @@ export function ProjectDetailPage() {
             <CardDescription>Возможно, он был удалён или ссылка устарела.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" size="sm" onClick={() => navigate('/projects')} className="gap-2">
-              <Icons.ArrowLeft className="h-4 w-4" />
-              К проектам
-            </Button>
+            <BreadcrumbBack label="Проекты" to="/projects" />
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  function startEditLinks() {
-    setFigmaDraft(project!.links?.figma ?? '');
-    setGitDraft(project!.links?.git ?? '');
-    setEditingLinks(true);
-  }
-
-  function saveLinks() {
-    update(project!.id, {
-      links: {
-        figma: figmaDraft.trim() || undefined,
-        git: gitDraft.trim() || undefined,
-      },
-    });
-    setEditingLinks(false);
-  }
-
   const modules = [
     { label: 'Задачи', count: taskCount, icon: Icons.Layers, to: `/projects/${project.id}/tasks` },
+    { label: 'Roadmap', count: 0, icon: Icons.LayoutGrid, to: `/projects/${project.id}/roadmap` },
     { label: 'Документация', count: docCount, icon: Icons.FileText, to: `/projects/${project.id}/docs` },
     { label: 'API', count: apiCount, icon: Icons.Plug, to: `/projects/${project.id}/api` },
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="w-full space-y-6 p-6">
       <ProjectDetailHeader
         project={project}
         onBack={() => navigate('/projects')}
         onShare={() => setShareOpen(true)}
-        onEdit={() => setEditOpen(true)}
+        onEdit={() => navigate(`/projects/${project.id}/edit`)}
         onDelete={() => setDeleteOpen(true)}
+        onStatusChange={(status) => update(project.id, { status })}
       />
 
       <ProjectModulesSection modules={modules} />
 
-      <ProjectMetaSection
-        project={project}
-        editingLinks={editingLinks}
-        figmaDraft={figmaDraft}
-        gitDraft={gitDraft}
-        onStatusChange={(status) => update(project.id, { status })}
-        onStartEditLinks={startEditLinks}
-        onFigmaDraftChange={setFigmaDraft}
-        onGitDraftChange={setGitDraft}
-        onSaveLinks={saveLinks}
-        onCancelEditLinks={() => setEditingLinks(false)}
-      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ProjectDeadlinesCard project={project} />
+        <ProjectGitDashboard
+          projectId={project.id}
+          gitUrl={project.links?.git}
+          onSaveGitUrl={(git) =>
+            update(project.id, { links: { ...project.links, git: git || undefined } })
+          }
+        />
+      </div>
 
       <ProjectFigmaCard
         project={project}
         onAddFigma={(url) => update(project.id, { links: { ...project.links, figma: url } })}
-        onEditLinks={startEditLinks}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Icons.Sparkles className="h-4 w-4" />
-            AI-анализ
-          </CardTitle>
-          <CardDescription>Понимание проекта целиком.</CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          AI использует документацию, задачи, Git и Figma этого проекта. Наполните модули — появится анализ.
-        </CardContent>
-      </Card>
-
-      <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
       <ProjectShareDialog project={project} open={shareOpen} onOpenChange={setShareOpen} />
       <ConfirmDeleteDialog
         open={deleteOpen}

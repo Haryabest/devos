@@ -23,8 +23,8 @@ import { FilterSelect } from '@/features/projects/components/filter-select';
 import { ProjectGrid } from '@/features/projects/components/project-grid';
 import { EmptyProjects } from '@/features/projects/components/empty-projects';
 import { GroupsBar } from '@/features/projects/components/groups-bar';
-import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog';
 import { GroupFormDialog } from '@/features/projects/components/group-form-dialog';
+import { PageContainer } from '@/components/layout/page-container';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -37,7 +37,6 @@ export function ProjectsPage() {
   const docs = useDocsStore((s) => s.docs);
   const endpoints = useApiStore((s) => s.endpoints);
 
-  const [open, setOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<(typeof groups)[0] | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
@@ -105,7 +104,7 @@ export function ProjectsPage() {
     groupFilter !== 'ALL';
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
+    <PageContainer>
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Проекты</h1>
@@ -118,7 +117,7 @@ export function ProjectsPage() {
             <Icons.FolderPlus className="h-4 w-4" />
             Группа
           </Button>
-          <Button onClick={() => setOpen(true)} className="gap-2">
+          <Button onClick={() => navigate('/projects/new')} className="gap-2">
             <Icons.Plus className="h-4 w-4" />
             Проект
           </Button>
@@ -197,7 +196,7 @@ export function ProjectsPage() {
       />
 
       {projects.length === 0 ? (
-        <EmptyProjects onCreate={() => setOpen(true)} />
+        <EmptyProjects onCreate={() => navigate('/projects/new')} />
       ) : filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -239,11 +238,6 @@ export function ProjectsPage() {
         />
       )}
 
-      <ProjectFormDialog
-        open={open}
-        onOpenChange={setOpen}
-        onCreated={(id) => navigate(`/projects/${id}`)}
-      />
       <GroupFormDialog
         open={groupOpen}
         onOpenChange={(o) => {
@@ -259,6 +253,6 @@ export function ProjectsPage() {
         description={deleteConfirm?.description}
         onConfirm={() => deleteConfirm?.onConfirm()}
       />
-    </div>
+    </PageContainer>
   );
 }

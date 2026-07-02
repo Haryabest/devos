@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaClient } from '@prisma/client';
 import type { HealthResponse } from '@devos/shared';
@@ -7,7 +7,7 @@ import type { HealthResponse } from '@devos/shared';
 @Controller('health')
 export class HealthController {
   private readonly startedAt = Date.now();
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
   @Get()
   async check(): Promise<HealthResponse> {

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TitleBar } from '@/components/layout/title-bar';
+import { SavedAccountsPanel } from '@/components/auth/saved-accounts-panel';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLogin } from '@/hooks/use-auth';
 
@@ -45,6 +46,8 @@ export function LoginPage() {
             <CardDescription>AI-воркспейс для разработки</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <SavedAccountsPanel />
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

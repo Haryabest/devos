@@ -14,6 +14,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDeleteDialog, type DeleteConfirmState } from '@/components/ui/confirm-delete-dialog';
 import * as Icons from '@/components/ui/icons';
+import { BreadcrumbBack } from '@/components/layout/breadcrumb-back';
+import { PageTopBar } from '@/components/layout/page-top-bar';
 import { cn } from '@/lib/utils';
 import { useProjectsStore } from '@/stores/projects-store';
 import { HTTP_METHODS, METHOD_COLOR, useApiStore } from '@/stores/api-store';
@@ -110,21 +112,12 @@ export function ProjectApiPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/60 px-6 py-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(`/projects/${project.id}`)}
-          className="mb-2 gap-2 text-muted-foreground"
-        >
-          <Icons.ArrowLeft className="h-4 w-4" />
-          {project.name}
-        </Button>
+      <PageTopBar breadcrumb={<BreadcrumbBack label={project.name} to={`/projects/${project.id}`} />}>
         <h1 className="text-2xl font-semibold tracking-tight">API</h1>
         <p className="text-sm text-muted-foreground">
           Эндпоинты проекта. Добавьте и проверьте запрос прямо здесь.
         </p>
-      </div>
+      </PageTopBar>
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-64 flex-col border-r border-border/60">

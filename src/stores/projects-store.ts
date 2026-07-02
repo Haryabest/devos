@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import type { Project, ProjectLinks, ProjectStatus, ProjectType } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
 import { useApiStore } from '@/stores/api-store';
+import { useRoadmapStore } from '@/stores/roadmap-store';
 
 /**
  * Локальный стор проектов — работает без backend (данные в localStorage).
@@ -18,6 +20,9 @@ export interface NewProject {
   type?: ProjectType;
   links?: ProjectLinks;
   groupId?: string | null;
+  clientId?: string | null;
+  startAt?: string | null;
+  dueAt?: string | null;
 }
 
 function cleanLinks(links?: ProjectLinks): ProjectLinks {
@@ -36,6 +41,7 @@ interface ProjectsState {
   update: (id: string, patch: Partial<Project>) => void;
   remove: (id: string) => void;
   getById: (id: string) => Project | undefined;
+  setFromServer: (projects: Project[]) => void;
 }
 
 function uid(): string {
@@ -58,6 +64,9 @@ export const useProjectsStore = create<ProjectsState>()(
           health: 'GREEN',
           links: cleanLinks(input.links),
           groupId: input.groupId ?? null,
+          clientId: input.clientId ?? null,
+          startAt: input.startAt ?? null,
+          dueAt: input.dueAt ?? null,
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ projects: [project, ...s.projects] }));
@@ -75,13 +84,20 @@ export const useProjectsStore = create<ProjectsState>()(
         useTasksStore.getState().removeByProject(id);
         useDocsStore.getState().removeByProject(id);
         useApiStore.getState().removeByProject(id);
+        useRoadmapStore.getState().removeByProject(id);
         useSaveStore.getState().markSaved();
       },
       getById: (id) => get().projects.find((p) => p.id === id),
+      setFromServer: (projects) => {
+        set({ projects });
+        useSaveStore.getState().markSaved();
+      },
     }),
     {
       name: 'devos:projects',
-      version: 2,
+      skipHydration: true,
+      storage: createJSONStorage(() => createScopedPersistStorage('devos:projects')),
+      version: 4,
       migrate: (state) => {
         const s = state as ProjectsState | undefined;
         if (s?.projects) {
@@ -89,6 +105,9 @@ export const useProjectsStore = create<ProjectsState>()(
             ...p,
             links: p.links ?? {},
             groupId: p.groupId ?? null,
+            clientId: (p as Project & { clientId?: string | null }).clientId ?? null,
+            startAt: (p as Project & { startAt?: string | null }).startAt ?? null,
+            dueAt: (p as Project & { dueAt?: string | null }).dueAt ?? null,
           }));
         }
         return s as ProjectsState;

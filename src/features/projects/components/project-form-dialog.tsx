@@ -20,6 +20,8 @@ import {
 import * as Icons from '@/components/ui/icons';
 import { PROJECT_TYPES, useProjectsStore } from '@/stores/projects-store';
 import { useGroupsStore } from '@/stores/groups-store';
+import { useClientsStore } from '@/stores/clients-store';
+import { fromDateInputValue, toDateInputValue } from '@/lib/format-date';
 import type { Project, ProjectLinks, ProjectType } from '@/shared/types';
 
 interface ProjectFormDialogProps {
@@ -39,6 +41,7 @@ export function ProjectFormDialog({
   const add = useProjectsStore((s) => s.add);
   const update = useProjectsStore((s) => s.update);
   const groups = useGroupsStore((s) => s.groups);
+  const clients = useClientsStore((s) => s.clients);
 
   const isEdit = !!project;
 
@@ -46,6 +49,9 @@ export function ProjectFormDialog({
   const [description, setDescription] = useState('');
   const [type, setType] = useState<ProjectType>('WEB');
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [startAt, setStartAt] = useState('');
+  const [dueAt, setDueAt] = useState('');
   const [links, setLinks] = useState<ProjectLinks>({});
 
   useEffect(() => {
@@ -54,6 +60,9 @@ export function ProjectFormDialog({
     setDescription(project?.description ?? '');
     setType(project?.type ?? 'WEB');
     setGroupId(project?.groupId ?? null);
+    setClientId(project?.clientId ?? null);
+    setStartAt(toDateInputValue(project?.startAt));
+    setDueAt(toDateInputValue(project?.dueAt));
     setLinks(project?.links ?? {});
   }, [open, project]);
 
@@ -61,9 +70,27 @@ export function ProjectFormDialog({
     e.preventDefault();
     if (!name.trim()) return;
     if (isEdit && project) {
-      update(project.id, { name, description, type, links, groupId });
+      update(project.id, {
+        name,
+        description,
+        type,
+        links,
+        groupId,
+        clientId,
+        startAt: fromDateInputValue(startAt),
+        dueAt: fromDateInputValue(dueAt),
+      });
     } else {
-      const created = add({ name, description, type, links, groupId });
+      const created = add({
+        name,
+        description,
+        type,
+        links,
+        groupId,
+        clientId,
+        startAt: fromDateInputValue(startAt),
+        dueAt: fromDateInputValue(dueAt),
+      });
       onCreated?.(created.id);
     }
     onOpenChange(false);
@@ -102,6 +129,27 @@ export function ProjectFormDialog({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="startAt">Начало</Label>
+              <Input
+                id="startAt"
+                type="date"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dueAt">Окончание</Label>
+              <Input
+                id="dueAt"
+                type="date"
+                value={dueAt}
+                onChange={(e) => setDueAt(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="type">Тип</Label>
             <Select value={type} onValueChange={(v) => setType(v as ProjectType)}>
@@ -133,6 +181,28 @@ export function ProjectFormDialog({
                   {groups.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
                       {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {clients.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="client">Клиент</Label>
+              <Select
+                value={clientId ?? '__none'}
+                onValueChange={(v) => setClientId(v === '__none' ? null : v)}
+              >
+                <SelectTrigger id="client">
+                  <SelectValue placeholder="Без клиента" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Без клиента</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

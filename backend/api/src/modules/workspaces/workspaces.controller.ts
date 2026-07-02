@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 import { WorkspacesService } from './workspaces.service.js';
@@ -10,8 +10,8 @@ import { JwtGuard } from '../auth/jwt.guard.js';
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(
-    private readonly ws: WorkspacesService,
-    private readonly guard: JwtGuard,
+    @Inject(WorkspacesService) private readonly ws: WorkspacesService,
+    @Inject(JwtGuard) private readonly guard: JwtGuard,
   ) {}
 
   private async uid(req: FastifyRequest & { userId?: string }) {

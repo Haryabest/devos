@@ -108,9 +108,17 @@ export function useRichEditor(
 
   const insertImageFromFile = useCallback(
     (file: File) => {
+      if (file.size > 120_000) {
+        window.alert('Изображение слишком большое для локального сохранения. Уменьшите файл или вставьте ссылку.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = String(reader.result ?? '');
+        if (dataUrl.length > 120_000) {
+          window.alert('Изображение слишком большое для локального сохранения.');
+          return;
+        }
         if (dataUrl) exec('insertImage', dataUrl);
       };
       reader.readAsDataURL(file);
@@ -279,7 +287,7 @@ export function RichEditorBody({
       data-empty="true"
       data-placeholder={placeholder}
       className={cn(
-        'rich-editor min-h-[50vh] max-w-none px-4 py-3 text-sm leading-relaxed outline-none',
+        'rich-editor prose-editor min-h-[50vh] max-w-none px-4 py-3 text-[15px] leading-relaxed outline-none',
         className,
       )}
     />

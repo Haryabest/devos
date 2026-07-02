@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaClient } from '@prisma/client';
 import { env } from '../../config/env.js';
@@ -7,8 +7,8 @@ import { env } from '../../config/env.js';
 @Injectable()
 export class JwtGuard {
   constructor(
-    private readonly jwt: JwtService,
-    private readonly prisma: PrismaClient,
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(PrismaClient) private readonly prisma: PrismaClient,
   ) {}
 
   async authenticate(request: { headers: Record<string, string | undefined>; userId?: string }) {

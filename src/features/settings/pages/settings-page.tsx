@@ -9,6 +9,7 @@ import { AiContextSection } from '@/features/settings/components/ai-context-sect
 import { AutosaveSection } from '@/features/settings/components/autosave-section';
 import { IntegrationsSection } from '@/features/settings/components/integrations-section';
 import { DataSection } from '@/features/settings/components/data-section';
+import { PageContainer } from '@/components/layout/page-container';
 
 export function SettingsPage() {
   const [theme, setTheme] = useTheme();
@@ -49,7 +50,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <PageContainer>
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Настройки</h1>
         <p className="text-sm text-muted-foreground">
@@ -57,39 +58,45 @@ export function SettingsPage() {
         </p>
       </header>
 
-      <WorkspaceSection
-        workspaceDraft={workspaceDraft}
-        onWorkspaceDraftChange={setWorkspaceDraft}
-        onSave={() => update({ workspaceName: workspaceDraft.trim() || 'Мой воркспейс' })}
-        userName={user?.name}
-        isGuest={isGuest}
-      />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
+          <WorkspaceSection
+            workspaceDraft={workspaceDraft}
+            onWorkspaceDraftChange={setWorkspaceDraft}
+            onSave={() => update({ workspaceName: workspaceDraft.trim() || 'Мой воркспейс' })}
+            userName={user?.name}
+            isGuest={isGuest}
+          />
 
-      <AppearanceSection
-        themePreference={settings.theme}
-        currentTheme={theme}
-        onThemeChange={applyTheme}
-      />
+          <AppearanceSection
+            themePreference={settings.theme}
+            currentTheme={theme}
+            onThemeChange={applyTheme}
+          />
 
-      <AiContextSection
-        aiUseDocs={settings.aiUseDocs}
-        aiUseTasks={settings.aiUseTasks}
-        aiUseGit={settings.aiUseGit}
-        aiUseFigma={settings.aiUseFigma}
-        apiKeyDraft={apiKeyDraft}
-        onToggle={(key, value) => update({ [key]: value })}
-        onApiKeyDraftChange={setApiKeyDraft}
-        onSaveApiKey={() => update({ openAiApiKey: apiKeyDraft.trim() })}
-      />
+          <AutosaveSection
+            autosaveDelayMs={settings.autosaveDelayMs}
+            onChange={(delayMs) => update({ autosaveDelayMs: delayMs })}
+          />
+        </div>
 
-      <AutosaveSection
-        autosaveDelayMs={settings.autosaveDelayMs}
-        onChange={(delayMs) => update({ autosaveDelayMs: delayMs })}
-      />
+        <div className="space-y-6">
+          <AiContextSection
+            aiUseDocs={settings.aiUseDocs}
+            aiUseTasks={settings.aiUseTasks}
+            aiUseGit={settings.aiUseGit}
+            aiUseFigma={settings.aiUseFigma}
+            apiKeyDraft={apiKeyDraft}
+            onToggle={(key, value) => update({ [key]: value })}
+            onApiKeyDraftChange={setApiKeyDraft}
+            onSaveApiKey={() => update({ openAiApiKey: apiKeyDraft.trim() })}
+          />
 
-      <IntegrationsSection />
+          <IntegrationsSection />
 
-      <DataSection onExport={handleExport} onClear={() => setClearOpen(true)} />
+          <DataSection onExport={handleExport} onClear={() => setClearOpen(true)} />
+        </div>
+      </div>
 
       <ConfirmDeleteDialog
         open={clearOpen}
@@ -99,6 +106,6 @@ export function SettingsPage() {
         confirmLabel="Очистить"
         onConfirm={clearAllLocalData}
       />
-    </div>
+    </PageContainer>
   );
 }

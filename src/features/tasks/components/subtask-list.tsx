@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import * as Icons from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useTasksStore } from '@/stores/tasks-store';
@@ -14,7 +15,9 @@ type SubtaskListProps = {
 export function SubtaskList({ subtasks, onRequestRemove }: SubtaskListProps) {
   const update = useTasksStore((s) => s.update);
   const scheduleUpdate = useTasksStore((s) => s.scheduleUpdate);
-  if (subtasks.length === 0) return null;
+  if (subtasks.length === 0) {
+    return <p className="text-sm text-muted-foreground">Подзадач пока нет.</p>;
+  }
   return (
     <div className="space-y-1">
       {subtasks.map((s) => (
@@ -22,30 +25,28 @@ export function SubtaskList({ subtasks, onRequestRemove }: SubtaskListProps) {
           key={s.id}
           className="group flex items-center gap-2 rounded-md border border-border/60 bg-card px-3 py-1.5"
         >
-          <button
-            onClick={() => update(s.id, { done: !s.done })}
-            className={cn(
-              'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-              s.done ? 'border-primary bg-primary text-primary-foreground' : 'border-input',
-            )}
-          >
-            {s.done && <Icons.Check className="h-3 w-3" />}
-          </button>
-          <input
+          <Checkbox
+            checked={s.done}
+            onCheckedChange={(checked) => update(s.id, { done: checked === true })}
+            aria-label="Отметить подзадачу"
+          />
+          <Input
             defaultValue={s.title}
             key={s.id}
             onChange={(e) => scheduleUpdate(s.id, { title: e.target.value })}
             className={cn(
-              'flex-1 bg-transparent text-sm outline-none',
+              'h-8 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0',
               s.done && 'text-muted-foreground line-through',
             )}
           />
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover:opacity-100"
             onClick={() => onRequestRemove(s)}
-            className="opacity-0 transition-opacity group-hover:opacity-100"
           >
             <Icons.Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-          </button>
+          </Button>
         </div>
       ))}
     </div>

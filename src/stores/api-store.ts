@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import type { ApiEndpoint, HttpMethod } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 
@@ -62,7 +63,11 @@ export const useApiStore = create<ApiState>()(
         useSaveStore.getState().markSaved();
       },
     }),
-    { name: 'devos:api' },
+    {
+      name: 'devos:api',
+      skipHydration: true,
+      storage: createJSONStorage(() => createScopedPersistStorage('devos:api')),
+    },
   ),
 );
 

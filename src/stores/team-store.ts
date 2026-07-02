@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
+import { readScopedItem, writeScopedItem } from '@/lib/storage-scope';
 import type { ProjectMember, Role, TeamInvite } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -51,10 +53,10 @@ const INVITE_POOL_KEY = 'devos:invite-pool';
 
 function pushToInvitePool(invite: TeamInvite) {
   try {
-    const raw = localStorage.getItem(INVITE_POOL_KEY);
+    const raw = readScopedItem(INVITE_POOL_KEY);
     const pool: TeamInvite[] = raw ? JSON.parse(raw) : [];
     pool.unshift(invite);
-    localStorage.setItem(INVITE_POOL_KEY, JSON.stringify(pool.slice(0, 200)));
+    writeScopedItem(INVITE_POOL_KEY, JSON.stringify(pool.slice(0, 200)));
   } catch {
     /* ignore */
   }
@@ -62,7 +64,7 @@ function pushToInvitePool(invite: TeamInvite) {
 
 export function pullInvitesFromPool(): TeamInvite[] {
   try {
-    const raw = localStorage.getItem(INVITE_POOL_KEY);
+    const raw = readScopedItem(INVITE_POOL_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -235,6 +237,11 @@ export const useTeamStore = create<TeamState>()(
         );
       },
     }),
-    { name: 'devos:team', version: 1 },
+    {
+      name: 'devos:team',
+      skipHydration: true,
+      storage: createJSONStorage(() => createScopedPersistStorage('devos:team')),
+      version: 1,
+    },
   ),
 );

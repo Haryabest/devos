@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaClient, ProjectStatus, ProjectType } from '@prisma/client';
 
 export interface CreateProjectDto {
@@ -13,7 +13,7 @@ export interface CreateProjectDto {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
   private async assertMember(workspaceId: string, userId: string) {
     const m = await this.prisma.workspaceMember.findUnique({

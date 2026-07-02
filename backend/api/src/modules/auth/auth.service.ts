@@ -3,19 +3,20 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { env } from '../../config/env.js';
-import type { RegisterDto, LoginDto } from './auth.dto.js';
+import type { RegisterDto, LoginDto, ChangePasswordDto } from './auth.dto.js';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaClient,
-    private readonly jwt: JwtService,
+    @Inject(PrismaClient) private readonly prisma: PrismaClient,
+    @Inject(JwtService) private readonly jwt: JwtService,
   ) {}
 
   // ── register ───────────────────────────────────────────────────────────────
@@ -28,6 +29,20 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: { email: dto.email, name: dto.name, passwordHash },
       select: { id: true, email: true, name: true, avatarUrl: true },
+    });
+
+    const slugBase = dto.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'workspace';
+    await this.prisma.workspace.create({
+      data: {
+        name: `${dto.name} Workspace`,
+        slug: `${slugBase}-${user.id.slice(-6)}`,
+        ownerId: user.id,
+        members: { create: { userId: user.id, role: 'OWNER' } },
+      },
     });
 
     const tokens = await this.issueTokens(user.id, meta);
@@ -80,6 +95,24 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, meta);
     return { user, tokens };
+  }
+
+  // ── change password ────────────────────────────────────────────────────────
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!user.passwordHash) {
+      throw new BadRequestException('У аккаунта нет пароля');
+    }
+
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) throw new UnauthorizedException('Неверный текущий пароль');
+
+    const passwordHash = await argon2.hash(dto.newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }
 
   // ── me ─────────────────────────────────────────────────────────────────────

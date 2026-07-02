@@ -34,3 +34,15 @@ export class RefreshDto {
   @MinLength(1)
   refreshToken!: string;
 }
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'oldpassword123' })
+  @IsString()
+  @MinLength(1)
+  currentPassword!: string;
+
+  @ApiProperty({ example: 'newpassword123', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+}

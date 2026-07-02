@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TitleBar } from '@/components/layout/title-bar';
+import { SavedAccountsPanel } from '@/components/auth/saved-accounts-panel';
 import { useRegister } from '@/hooks/use-auth';
 
 export function RegisterPage() {
@@ -39,6 +40,8 @@ export function RegisterPage() {
             <CardDescription>30 секунд — без карты.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <SavedAccountsPanel />
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Имя</Label>

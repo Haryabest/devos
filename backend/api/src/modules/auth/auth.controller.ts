@@ -6,13 +6,13 @@ import {
   Req,
   HttpCode,
   HttpStatus,
-  UseGuards,
+  Inject,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 import { AuthService } from './auth.service.js';
 import { JwtGuard } from './jwt.guard.js';
-import { RegisterDto, LoginDto, RefreshDto } from './auth.dto.js';
+import { RegisterDto, LoginDto, RefreshDto, ChangePasswordDto } from './auth.dto.js';
 
 function meta(req: FastifyRequest) {
   return {
@@ -25,8 +25,8 @@ function meta(req: FastifyRequest) {
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly auth: AuthService,
-    private readonly guard: JwtGuard,
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(JwtGuard) private readonly guard: JwtGuard,
   ) {}
 
   @Post('register')
@@ -62,5 +62,17 @@ export class AuthController {
   async me(@Req() req: FastifyRequest & { userId?: string }) {
     await this.guard.authenticate(req as Parameters<typeof this.guard.authenticate>[0]);
     return this.auth.me(req.userId!);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Сменить пароль' })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: FastifyRequest & { userId?: string },
+  ) {
+    await this.guard.authenticate(req as Parameters<typeof this.guard.authenticate>[0]);
+    await this.auth.changePassword(req.userId!, dto);
   }
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { switchToSavedAccount, type SavedAccount } from '@/lib/saved-accounts';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AuthResponse, User } from '@/shared/types';
 
@@ -37,11 +38,19 @@ export function useLogin() {
 // ── me ────────────────────────────────────────────────────────────────────────
 
 export function useMe() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
   return useQuery<User>({
-    queryKey: ['me'],
+    queryKey: ['me', user?.id],
     queryFn: () => api<User>('/auth/me'),
     enabled: !!accessToken,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSwitchAccount() {
+  const { setSession } = useAuthStore();
+  return useMutation<AuthResponse, Error, SavedAccount>({
+    mutationFn: switchToSavedAccount,
+    onSuccess: (data) => setSession(data),
   });
 }

@@ -1,6 +1,1 @@
-import { StubPage } from '@/components/stub-page';
-export function ClientsPage() {
-  return (
-    <StubPage title="Клиенты" description="Заказчики воркспейса: карточки, контакты, договоры." />
-  );
-}
+export { ClientsPage } from '@/features/clients/pages/clients-page';

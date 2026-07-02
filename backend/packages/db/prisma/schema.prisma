@@ -84,7 +84,8 @@ model Workspace {
   members      WorkspaceMember[]
   projects     Project[]
   clients      Client[]
-  documents    Document[]
+  documents Document[]
+  documentFolders DocumentFolder[]
   files        File[]
   integrations Integration[]
   auditEvents  AuditEvent[]
@@ -169,6 +170,7 @@ model Project {
   tasks     Task[]
   sprints   Sprint[]
   documents Document[]
+  documentFolders DocumentFolder[]
   files     File[]
   milestones Milestone[]
 
@@ -294,15 +296,19 @@ model Document {
 model DocumentFolder {
   id          String   @id @default(cuid())
   workspaceId String
+  projectId   String?
   parentId    String?
   name        String
   createdAt   DateTime @default(now())
 
-  parent    DocumentFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    DocumentFolder? @relation("FolderTree", fields: [parentId], references: [id])
   children  DocumentFolder[] @relation("FolderTree")
   documents Document[]
 
   @@index([workspaceId, parentId])
+  @@index([projectId])
 }
 
 model DocumentRevision {

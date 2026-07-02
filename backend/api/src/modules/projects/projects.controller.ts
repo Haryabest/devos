@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, HttpCode, HttpStatus, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 import { ProjectsService, type CreateProjectDto } from './projects.service.js';
@@ -8,7 +8,10 @@ import { JwtGuard } from '../auth/jwt.guard.js';
 @ApiBearerAuth()
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly svc: ProjectsService, private readonly guard: JwtGuard) {}
+  constructor(
+    @Inject(ProjectsService) private readonly svc: ProjectsService,
+    @Inject(JwtGuard) private readonly guard: JwtGuard,
+  ) {}
 
   private async uid(req: FastifyRequest & { userId?: string }) {
     return this.guard.authenticate(req as Parameters<typeof this.guard.authenticate>[0]);

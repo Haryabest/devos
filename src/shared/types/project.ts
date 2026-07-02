@@ -26,5 +26,8 @@ export interface Project {
   health: HealthScore;
   links: ProjectLinks;
   groupId: string | null;
+  clientId: string | null;
+  startAt: string | null;
+  dueAt: string | null;
   createdAt: string;
 }

@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BreadcrumbBack } from '@/components/layout/breadcrumb-back';
+import { PageTopBar } from '@/components/layout/page-top-bar';
 import * as Icons from '@/components/ui/icons';
 import { TASK_FILTER_LABELS, type TaskFilter, type TaskView } from '@/features/tasks/constants';
 
@@ -21,16 +23,7 @@ export function TasksPageHeader({
   onFilterChange,
 }: TasksPageHeaderProps) {
   return (
-    <div className="border-b border-border/60 px-6 py-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onBack}
-        className="mb-2 gap-2 text-muted-foreground"
-      >
-        <Icons.ArrowLeft className="h-4 w-4" />
-        {projectName}
-      </Button>
+    <PageTopBar breadcrumb={<BreadcrumbBack label={projectName} onClick={onBack} />}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Задачи</h1>
@@ -52,6 +45,14 @@ export function TasksPageHeader({
               <Icons.Table2 className="h-3.5 w-3.5" />
               Таблица
             </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5">
+              <Icons.CircleDashed className="h-3.5 w-3.5" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="gap-1.5">
+              <Icons.GripVertical className="h-3.5 w-3.5" />
+              Timeline
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -68,6 +69,6 @@ export function TasksPageHeader({
           </Button>
         ))}
       </div>
-    </div>
+    </PageTopBar>
   );
 }

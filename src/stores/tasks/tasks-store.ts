@@ -1,16 +1,40 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { Attachment, Task } from '@/shared/types';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import type { Attachment, Task, TaskComment, TaskHistoryEntry } from '@/shared/types';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
+import { formatStorageLimitMessage, isDataUrlTooLarge } from '@/lib/storage-limits';
+import { useAuthStore } from '@/stores/auth-store';
 import { useSaveStore } from '@/stores/save-store';
 import { getAutosaveDelayMs } from '@/stores/settings-store';
 import {
   COLUMN_COLORS,
   createUid,
   migrateTasksState,
+  statusFromColumn,
   type NewAttachment,
   type NewColumn,
   type NewTask,
 } from '@/stores/tasks/constants';
+
+function currentAuthor(): string {
+  return useAuthStore.getState().user?.name ?? 'Система';
+}
+
+function historyEntry(field: string, oldValue: string, newValue: string): TaskHistoryEntry {
+  return {
+    id: createUid(),
+    field,
+    oldValue,
+    newValue,
+    author: currentAuthor(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function appendHistory(task: Task, entries: TaskHistoryEntry[]): Task {
+  if (entries.length === 0) return task;
+  return { ...task, history: [...entries, ...task.history].slice(0, 100) };
+}
 
 interface TasksState {
   columns: import('@/shared/types').TaskColumn[];
@@ -23,7 +47,7 @@ interface TasksState {
   reorderColumns: (ids: string[]) => void;
 
   add: (input: NewTask) => Task;
-  update: (id: string, patch: Partial<Task>) => void;
+  update: (id: string, patch: Partial<Task>, logHistory?: boolean) => void;
   scheduleUpdate: (id: string, patch: Partial<Task>) => void;
   flushTaskSave: () => void;
   remove: (id: string) => void;
@@ -33,6 +57,9 @@ interface TasksState {
 
   addAttachment: (taskId: string, input: NewAttachment) => void;
   removeAttachment: (taskId: string, attachmentId: string) => void;
+  addComment: (taskId: string, text: string) => void;
+  addDependency: (taskId: string, dependsOnId: string) => void;
+  removeDependency: (taskId: string, dependsOnId: string) => void;
 }
 
 let taskSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,6 +87,7 @@ export const useTasksStore = create<TasksState>()(
           name: input.name.trim() || 'Новая колонка',
           color: input.color ?? COLUMN_COLORS[get().columns.length % COLUMN_COLORS.length]!,
           order,
+          statusKey: input.statusKey ?? 'TODO',
         };
         set((s) => ({ columns: [...s.columns, col] }));
         markSaved();
@@ -95,6 +123,8 @@ export const useTasksStore = create<TasksState>()(
       },
 
       add: (input) => {
+        const col = get().columns.find((c) => c.id === input.columnId);
+        const status = statusFromColumn(col);
         const tasksInCol = get().tasks.filter(
           (t) => t.columnId === input.columnId && t.parentId === (input.parentId ?? null),
         );
@@ -107,18 +137,42 @@ export const useTasksStore = create<TasksState>()(
           title: input.title.trim(),
           description: '',
           priority: input.priority ?? 'MEDIUM',
+          status,
           order,
           attachments: [],
-          done: false,
+          done: status === 'DONE',
+          startAt: null,
+          dueAt: null,
+          dependsOn: [],
+          comments: [],
+          history: [],
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ tasks: [...s.tasks, task] }));
         markSaved();
         return task;
       },
-      update: (id, patch) => {
+      update: (id, patch, logHistory = true) => {
         set((s) => ({
-          tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+          tasks: s.tasks.map((t) => {
+            if (t.id !== id) return t;
+            const entries: TaskHistoryEntry[] = [];
+            if (logHistory) {
+              (Object.keys(patch) as (keyof Task)[]).forEach((key) => {
+                if (key === 'history' || key === 'comments' || key === 'attachments') return;
+                const oldVal = String(t[key] ?? '');
+                const newVal = String(patch[key] ?? '');
+                if (oldVal !== newVal) entries.push(historyEntry(String(key), oldVal, newVal));
+              });
+            }
+            let next = { ...t, ...patch };
+            if (patch.columnId) {
+              const col = s.columns.find((c) => c.id === patch.columnId);
+              const status = statusFromColumn(col);
+              next = { ...next, status, done: status === 'DONE' };
+            }
+            return appendHistory(next, entries);
+          }),
         }));
         markSaved();
       },
@@ -133,12 +187,7 @@ export const useTasksStore = create<TasksState>()(
         taskSaveTimer = setTimeout(() => {
           useSaveStore.getState().markSaving();
           if (pendingTaskId) {
-            set((s) => ({
-              tasks: s.tasks.map((t) =>
-                t.id === pendingTaskId ? { ...t, ...pendingTaskPatch } : t,
-              ),
-            }));
-            markSaved();
+            get().update(pendingTaskId, pendingTaskPatch);
           }
           pendingTaskId = null;
           pendingTaskPatch = {};
@@ -152,19 +201,19 @@ export const useTasksStore = create<TasksState>()(
         }
         if (pendingTaskId) {
           useSaveStore.getState().markSaving();
-          set((s) => ({
-            tasks: s.tasks.map((t) =>
-              t.id === pendingTaskId ? { ...t, ...pendingTaskPatch } : t,
-            ),
-          }));
+          get().update(pendingTaskId, pendingTaskPatch);
           pendingTaskId = null;
           pendingTaskPatch = {};
-          markSaved();
         }
       },
       remove: (id) => {
         set((s) => ({
-          tasks: s.tasks.filter((t) => t.id !== id && t.parentId !== id),
+          tasks: s.tasks
+            .filter((t) => t.id !== id && t.parentId !== id)
+            .map((t) => ({
+              ...t,
+              dependsOn: t.dependsOn.filter((d) => d !== id),
+            })),
         }));
         markSaved();
       },
@@ -179,16 +228,29 @@ export const useTasksStore = create<TasksState>()(
         set((s) => {
           const target = s.tasks.find((t) => t.id === id);
           if (!target) return {};
+          const col = s.columns.find((c) => c.id === columnId);
+          const status = statusFromColumn(col);
           const parentId = target.parentId;
           const others = s.tasks
             .filter((t) => t.columnId === columnId && t.parentId === parentId && t.id !== id)
             .sort((a, b) => a.order - b.order);
           const newOthers = [...others];
-          newOthers.splice(Math.min(newIndex, newOthers.length), 0, { ...target, columnId });
+          newOthers.splice(
+            Math.min(newIndex, newOthers.length),
+            0,
+            { ...target, columnId, status, done: status === 'DONE' },
+          );
           const reindexed = newOthers.map((t, i) => ({ ...t, order: i }));
           const map = new Map(reindexed.map((t) => [t.id, t]));
           return {
-            tasks: s.tasks.map((t) => (map.get(t.id) ? (map.get(t.id) as Task) : t)),
+            tasks: s.tasks.map((t) => {
+              if (map.get(t.id)) return map.get(t.id) as Task;
+              if (t.id !== id) return t;
+              return appendHistory(
+                { ...t, columnId, status, done: status === 'DONE' },
+                [historyEntry('columnId', target.columnId, columnId)],
+              );
+            }),
           };
         });
         markSaved();
@@ -205,6 +267,13 @@ export const useTasksStore = create<TasksState>()(
       },
 
       addAttachment: (taskId, input) => {
+        if (
+          (input.kind === 'file' || input.kind === 'image') &&
+          isDataUrlTooLarge(input.value)
+        ) {
+          window.alert(formatStorageLimitMessage());
+          return;
+        }
         const att: Attachment = {
           id: createUid(),
           kind: input.kind,
@@ -214,7 +283,12 @@ export const useTasksStore = create<TasksState>()(
         };
         set((s) => ({
           tasks: s.tasks.map((t) =>
-            t.id === taskId ? { ...t, attachments: [...t.attachments, att] } : t,
+            t.id === taskId
+              ? appendHistory(
+                  { ...t, attachments: [...t.attachments, att] },
+                  [historyEntry('attachment', '', att.label)],
+                )
+              : t,
           ),
         }));
         markSaved();
@@ -229,11 +303,57 @@ export const useTasksStore = create<TasksState>()(
         }));
         markSaved();
       },
+      addComment: (taskId, text) => {
+        const comment: TaskComment = {
+          id: createUid(),
+          author: currentAuthor(),
+          text: text.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        if (!comment.text) return;
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, comments: [...t.comments, comment] } : t,
+          ),
+        }));
+        markSaved();
+      },
+      addDependency: (taskId, dependsOnId) => {
+        if (taskId === dependsOnId) return;
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId && !t.dependsOn.includes(dependsOnId)
+              ? appendHistory(
+                  { ...t, dependsOn: [...t.dependsOn, dependsOnId] },
+                  [historyEntry('dependsOn', '', dependsOnId)],
+                )
+              : t,
+          ),
+        }));
+        markSaved();
+      },
+      removeDependency: (taskId, dependsOnId) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId
+              ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== dependsOnId) }
+              : t,
+          ),
+        }));
+        markSaved();
+      },
     }),
     {
       name: 'devos:tasks',
-      version: 2,
+      skipHydration: true,
+      version: 3,
       migrate: migrateTasksState,
+      storage: createJSONStorage(() =>
+        createScopedPersistStorage('devos:tasks', {
+          quotaMessage:
+            'Недостаточно места в локальном хранилище. Удалите старые вложения или большие файлы в задачах.',
+        }),
+      ),
     },
   ),
 );

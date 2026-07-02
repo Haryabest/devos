@@ -1,4 +1,26 @@
+import { config } from 'dotenv';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+/** Пакет @devos/api — env.ts лежит в src/config/. */
+const API_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+const ENV_CANDIDATES = [
+  resolve(API_ROOT, '.env'),
+  resolve(API_ROOT, '.env.local'),
+  resolve(API_ROOT, '../.env'),
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), 'api/.env'),
+  resolve(process.cwd(), '../.env'),
+];
+
+for (const path of ENV_CANDIDATES) {
+  if (existsSync(path)) {
+    config({ path, override: false, quiet: true });
+  }
+}
 
 /**
  * Единая точка типизированных env-переменных.
@@ -16,8 +38,8 @@ const schema = z.object({
     .default('http://localhost:1420,http://localhost:5173')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
 
-  DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
@@ -50,6 +72,10 @@ const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
   // eslint-disable-next-line no-console
   console.error('❌ Invalid environment variables:\n', parsed.error.flatten().fieldErrors);
+  // eslint-disable-next-line no-console
+  console.error(
+    `💡 Создайте backend/api/.env (пример: backend/api/.env.example). Искали: ${ENV_CANDIDATES.join(', ')}`,
+  );
   process.exit(1);
 }
 

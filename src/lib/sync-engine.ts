@@ -10,8 +10,9 @@ import { useDocsStore } from '@/stores/docs-store';
 import { useApiStore } from '@/stores/api-store';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useTeamStore } from '@/stores/team-store';
+import { useClientsStore } from '@/stores/clients-store';
 
-export type SyncStoreName = 'projects' | 'tasks' | 'docs' | 'api' | 'groups' | 'team';
+export type SyncStoreName = 'projects' | 'tasks' | 'docs' | 'api' | 'groups' | 'team' | 'clients';
 
 export interface SyncMessage {
   senderId: string;
@@ -83,6 +84,9 @@ function applyRemote(msg: SyncMessage) {
       case 'team':
         useTeamStore.setState(msg.payload as never);
         break;
+      case 'clients':
+        useClientsStore.setState({ clients: msg.payload as never });
+        break;
     }
   } finally {
     applyingRemote = false;
@@ -148,6 +152,11 @@ export function initCollaborationSync() {
       invites: state.invites,
       syncRooms: state.syncRooms,
     }));
+  });
+
+  useClientsStore.subscribe((state, prev) => {
+    if (applyingRemote || state.clients === prev.clients) return;
+    debouncedBroadcast('clients', () => state.clients);
   });
 }
 

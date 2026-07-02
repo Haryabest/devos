@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import type { ProjectGroup } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 
@@ -66,6 +67,11 @@ export const useGroupsStore = create<GroupsState>()(
         useSaveStore.getState().markSaved();
       },
     }),
-    { name: 'devos:groups', version: 1 },
+    {
+      name: 'devos:groups',
+      skipHydration: true,
+      storage: createJSONStorage(() => createScopedPersistStorage('devos:groups')),
+      version: 1,
+    },
   ),
 );

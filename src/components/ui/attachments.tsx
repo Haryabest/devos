@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import * as Icons from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { formatStorageLimitMessage, isDataUrlTooLarge } from '@/lib/storage-limits';
 import type { Attachment, AttachmentKind } from '@/shared/types';
 
 export function AttachmentIcon({ kind }: { kind: AttachmentKind }) {
@@ -109,9 +110,17 @@ export function AddAttachment({ onAdd, compact }: AddAttachmentProps) {
   }
 
   function handleFile(file: File) {
+    if (file.size > 90_000) {
+      window.alert(formatStorageLimitMessage());
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result ?? '');
+      if (isDataUrlTooLarge(dataUrl)) {
+        window.alert(formatStorageLimitMessage());
+        return;
+      }
       const isImage = file.type.startsWith('image/');
       onAdd({
         kind: isImage ? 'image' : 'file',

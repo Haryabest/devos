@@ -99,9 +99,9 @@ export function useDashboardData() {
 
     if (recs.length === 0 && projects.length > 0) {
       recs.push({
-        text: 'Контекст наполнен. Откройте AI Центр для анализа проектов.',
-        action: () => navigate('/ai'),
-        label: 'AI Центр',
+        text: 'Добавьте документацию к проектам — файлы, папки и версии.',
+        action: () => navigate('/documents'),
+        label: 'Документация',
       });
     }
 

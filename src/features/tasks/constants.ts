@@ -1,6 +1,6 @@
 import type { Priority } from '@/shared/types';
 
-export type TaskView = 'board' | 'list' | 'table';
+export type TaskView = 'board' | 'list' | 'table' | 'calendar' | 'timeline';
 export type TaskFilter = 'all' | 'active' | 'done';
 
 export const PRIORITY_DOT: Record<Priority, string> = {

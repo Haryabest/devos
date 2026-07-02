@@ -1,10 +1,10 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import type { CreateWorkspaceDto } from './workspaces.dto.js';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
   private slugify(name: string) {
     return name

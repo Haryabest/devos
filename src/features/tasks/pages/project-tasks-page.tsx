@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { startOfMonth } from 'date-fns';
 import { DndContext, DragOverlay, closestCorners } from '@dnd-kit/core';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,11 @@ import { KanbanColumn } from '@/features/tasks/components/kanban-column';
 import { TaskCard } from '@/features/tasks/components/task-card';
 import { TaskListView } from '@/features/tasks/components/task-list-view';
 import { TaskTableView } from '@/features/tasks/components/task-table-view';
+import { TaskCalendarView } from '@/features/tasks/components/task-calendar-view';
+import { TaskTimelineView } from '@/features/tasks/components/task-timeline-view';
 import { TasksPageHeader } from '@/features/tasks/components/tasks-page-header';
 import { applyTaskFilter, type TaskFilter, type TaskView } from '@/features/tasks/constants';
+import { TaskFormDialog } from '@/features/tasks/components/task-form-dialog';
 import { useProjectTasksDnd } from '@/features/tasks/hooks/use-project-tasks-dnd';
 import { useProjectsStore } from '@/stores/projects-store';
 import { seedColumns, useTasksStore } from '@/stores/tasks-store';
@@ -28,7 +32,6 @@ export function ProjectTasksPage() {
   const renameColumn = useTasksStore((s) => s.renameColumn);
   const recolorColumn = useTasksStore((s) => s.recolorColumn);
   const removeColumn = useTasksStore((s) => s.removeColumn);
-  const addTask = useTasksStore((s) => s.add);
   const removeTask = useTasksStore((s) => s.remove);
 
   useEffect(() => {
@@ -56,7 +59,10 @@ export function ProjectTasksPage() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [view, setView] = useState<TaskView>('board');
   const [filter, setFilter] = useState<TaskFilter>('all');
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [taskFormColumnId, setTaskFormColumnId] = useState<string | undefined>();
 
   const filteredTasks = useMemo(
     () => applyTaskFilter(projectTasks, filter),
@@ -134,7 +140,10 @@ export function ProjectTasksPage() {
                   key={col.id}
                   column={col}
                   tasks={filteredTasks.filter((t) => t.columnId === col.id)}
-                  onAdd={(title) => addTask({ projectId: project.id, columnId: col.id, title })}
+                  onAdd={(columnId) => {
+                    setTaskFormColumnId(columnId);
+                    setTaskFormOpen(true);
+                  }}
                   onRename={(name) => renameColumn(col.id, name)}
                   onRecolor={(color) => recolorColumn(col.id, color)}
                   onRemove={() => requestRemoveColumn(col)}
@@ -156,12 +165,47 @@ export function ProjectTasksPage() {
           onOpen={openTask}
           onRemove={requestRemoveTask}
         />
-      ) : (
+      ) : view === 'table' ? (
         <TaskTableView
           columns={projectColumns}
           tasks={filteredTasks}
           onOpen={openTask}
           onRemove={requestRemoveTask}
+        />
+      ) : view === 'calendar' ? (
+        <div className="space-y-2">
+          <div className="flex justify-end gap-2 px-6 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+              }
+            >
+              ←
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+              }
+            >
+              →
+            </Button>
+          </div>
+          <TaskCalendarView
+            tasks={filteredTasks}
+            columns={projectColumns}
+            month={calendarMonth}
+            onOpen={openTask}
+          />
+        </div>
+      ) : (
+        <TaskTimelineView
+          tasks={filteredTasks}
+          columns={projectColumns}
+          onOpen={openTask}
         />
       )}
 
@@ -171,6 +215,15 @@ export function ProjectTasksPage() {
         title={deleteConfirm?.title}
         description={deleteConfirm?.description}
         onConfirm={() => deleteConfirm?.onConfirm()}
+      />
+      <TaskFormDialog
+        open={taskFormOpen}
+        onOpenChange={setTaskFormOpen}
+        projectId={project.id}
+        columns={projectColumns}
+        defaultColumnId={taskFormColumnId}
+        siblingTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
+        onCreated={(id) => navigate(`/projects/${projectId}/tasks/${id}`)}
       />
     </div>
   );

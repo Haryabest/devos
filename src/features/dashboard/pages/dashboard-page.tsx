@@ -3,6 +3,7 @@ import { StatsCards } from '@/features/dashboard/components/stats-cards';
 import { ActivityCard } from '@/features/dashboard/components/activity-card';
 import { RecommendationsCard } from '@/features/dashboard/components/recommendations-card';
 import { ProjectQuickList } from '@/features/dashboard/components/project-quick-list';
+import { DashboardDeadlinesCard } from '@/features/dashboard/components/deadlines-card';
 import { useDashboardData } from '@/features/dashboard/hooks/use-dashboard-data';
 
 export function DashboardPage() {
@@ -19,7 +20,7 @@ export function DashboardPage() {
   } = useDashboardData();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
+    <div className="w-full space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{workspaceName}</h1>
         <p className="text-sm text-muted-foreground">
@@ -39,6 +40,8 @@ export function DashboardPage() {
         <ActivityCard activity={activity} />
         <RecommendationsCard hasProjects={projects.length > 0} recommendations={recommendations} />
       </div>
+
+      <DashboardDeadlinesCard projects={projects} />
 
       {projects.length > 0 && (
         <ProjectQuickList activeProjects={activeProjects} tasks={tasks} />

@@ -10,11 +10,12 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts",
+    "generate": "dotenv -e ../../.env -e .env -- prisma generate",
+    "postinstall": "dotenv -e ../../.env -e .env -- prisma generate",
+    "migrate": "dotenv -e ../../.env -e .env -- prisma migrate dev --name devos",
+    "migrate:deploy": "dotenv -e ../../.env -e .env -- prisma migrate deploy",
+    "studio": "dotenv -e ../../.env -e .env -- prisma studio",
+    "seed": "dotenv -e ../../.env -e .env -- tsx prisma/seed.ts",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo *.tsbuildinfo node_modules/.prisma"
@@ -29,6 +30,8 @@
   "devDependencies": {
     "@devos/config": "workspace:*",
     "@devos/shared": "workspace:*",
+    "argon2": "^0.41.1",
+    "dotenv-cli": "^8.0.0",
     "prisma": "^5.19.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2"

@@ -79,25 +79,39 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* SF Pro на macOS/iOS, Inter на Windows, системный на остальных */
     font-family:
-      -apple-system,
-      BlinkMacSystemFont,
       'SF Pro Text',
       'SF Pro Display',
+      -apple-system,
+      BlinkMacSystemFont,
       'Helvetica Neue',
       Inter,
+      'Segoe UI Variable',
+      'Segoe UI',
       system-ui,
       sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-size: 15px;
+    line-height: 1.47059;
+    font-weight: 400;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    font-kerning: normal;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.01em;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.022em;
   }
 
-  /* Заголовки — чуть теснее, как в macOS */
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
+    font-family:
+      'SF Pro Display',
+      -apple-system,
+      BlinkMacSystemFont,
+      Inter,
+      'Segoe UI',
+      system-ui,
+      sans-serif;
+    letter-spacing: -0.028em;
+    font-weight: 600;
   }
 
   /* Скролл работает, полосы прокрутки скрыты */
@@ -120,8 +134,7 @@
 }
 
 /* ---------- Rich text editor ---------- */
-.rich-editor:empty::before,
-.rich-editor[data-empty='true']:empty::before {
+.rich-editor[data-empty='true']::before {
   content: attr(data-placeholder);
   color: hsl(var(--muted-foreground) / 0.5);
   pointer-events: none;

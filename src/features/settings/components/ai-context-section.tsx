@@ -8,7 +8,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import * as Icons from '@/components/ui/icons';
 import { SettingToggle } from '@/features/settings/components/setting-toggle';
 
 type AiContextSectionProps = {
@@ -35,10 +34,7 @@ export function AiContextSection({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icons.Sparkles className="h-4 w-4" />
-          AI и контекст
-        </CardTitle>
+        <CardTitle className="text-base">AI и контекст</CardTitle>
         <CardDescription>
           Что AI использует для понимания проекта. Без контекста — «нет данных».
         </CardDescription>

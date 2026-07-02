@@ -22,10 +22,10 @@ export function RecommendationsCard({ hasProjects, recommendations }: Recommenda
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Icons.Sparkles className="h-4 w-4" />
-          AI рекомендации
+          <Icons.Bell className="h-4 w-4" />
+          Рекомендации
         </CardTitle>
-        <CardDescription>Что усилит контекст для AI.</CardDescription>
+        <CardDescription>Что улучшить в проекте.</CardDescription>
       </CardHeader>
       <CardContent>
         {!hasProjects ? (

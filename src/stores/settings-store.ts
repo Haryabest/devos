@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import { useSaveStore } from '@/stores/save-store';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -48,6 +49,10 @@ export const useSettingsStore = create<SettingsState>()(
           'devos:tasks',
           'devos:docs',
           'devos:api',
+          'devos:clients',
+          'devos:git',
+          'devos:roadmap',
+          'devos:figma',
           'devos:settings',
         ];
         const data: Record<string, unknown> = {};
@@ -65,6 +70,10 @@ export const useSettingsStore = create<SettingsState>()(
           'devos:tasks',
           'devos:docs',
           'devos:api',
+          'devos:clients',
+          'devos:git',
+          'devos:roadmap',
+          'devos:figma',
           'devos:settings',
           'devos:auth',
           'devos:theme',
@@ -73,6 +82,11 @@ export const useSettingsStore = create<SettingsState>()(
         window.location.href = '/login';
       },
     }),
-    { name: 'devos:settings', version: 1 },
+    {
+      name: 'devos:settings',
+      skipHydration: true,
+      storage: createJSONStorage(() => createScopedPersistStorage('devos:settings')),
+      version: 1,
+    },
   ),
 );

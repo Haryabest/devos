@@ -37,17 +37,21 @@ async function bootstrap() {
   );
   app.enableShutdownHooks();
 
-  const swagger = new DocumentBuilder()
-    .setTitle('DevOS API')
-    .setDescription('AI-first development workspace')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swagger));
+  try {
+    const swagger = new DocumentBuilder()
+      .setTitle('DevOS API')
+      .setDescription('AI-first development workspace')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swagger));
+    logger.log(`Swagger UI: http://${env.HOST}:${env.PORT}/api/docs`);
+  } catch (err) {
+    logger.warn('Swagger UI disabled (schema generation failed)');
+  }
 
   await app.listen({ port: env.PORT, host: env.HOST });
   logger.log(`DevOS API listening on http://${env.HOST}:${env.PORT} (${env.NODE_ENV})`);
-  logger.log(`Swagger UI: http://${env.HOST}:${env.PORT}/api/docs`);
 }
 
 bootstrap().catch((err) => {
