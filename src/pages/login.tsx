@@ -74,8 +74,11 @@ export function LoginPage() {
             </div>
 
             <Button variant="outline" className="w-full" onClick={handleGuest}>
-              Продолжить как гость
+              Войти как гость
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Локальный режим без backend. Данные хранятся на этом устройстве.
+            </p>
 
             <p className="text-center text-sm text-muted-foreground">
               Нет аккаунта?{' '}

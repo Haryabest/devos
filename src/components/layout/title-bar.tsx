@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SaveIndicator } from '@/components/layout/save-indicator';
 
 /** Определяем — работаем внутри Tauri или в браузере */
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -37,8 +38,13 @@ export function TitleBar({ className }: TitleBarProps) {
         <span className="text-xs font-medium text-muted-foreground">DevOS</span>
       </div>
 
-      {/* Растягивается — область drag */}
-      <div className="flex-1" data-tauri-drag-region />
+      {/* Центр — индикатор автосохранения (поверх drag-области) */}
+      <div
+        className="flex flex-1 items-center justify-center"
+        data-tauri-drag-region
+      >
+        <SaveIndicator />
+      </div>
 
       {/* Кнопки управления окном */}
       <div className="flex items-center">
@@ -47,21 +53,21 @@ export function TitleBar({ className }: TitleBarProps) {
           onClick={() => winAction('minimize')}
           className="hover:bg-accent"
         >
-          <Minus className="h-3 w-3" />
+          <Minus className="h-4 w-4" />
         </TitleBarBtn>
         <TitleBarBtn
           label="Развернуть"
           onClick={() => winAction('maximize')}
           className="hover:bg-accent"
         >
-          <Square className="h-3 w-3" />
+          <Square className="h-3.5 w-3.5" />
         </TitleBarBtn>
         <TitleBarBtn
           label="Закрыть"
           onClick={() => winAction('close')}
           className="hover:bg-destructive hover:text-destructive-foreground"
         >
-          <X className="h-3 w-3" />
+          <X className="h-4 w-4" />
         </TitleBarBtn>
       </div>
     </div>

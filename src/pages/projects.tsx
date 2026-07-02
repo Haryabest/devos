@@ -1,6 +1,1 @@
-import { StubPage } from '@/components/stub-page';
-export function ProjectsPage() {
-  return (
-    <StubPage title="Проекты" description="Все проекты воркспейса. Kanban, статусы, roadmap." />
-  );
-}
+export { ProjectsPage } from '@/features/projects/pages/projects-page';

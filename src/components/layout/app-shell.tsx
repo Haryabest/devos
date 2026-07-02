@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as Icons from '@/components/ui/icons';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -13,7 +13,6 @@ import { useAuthStore } from '@/stores/auth-store';
 const NAV = [
   { to: '/dashboard',  label: 'Главная',       icon: Icons.LayoutDashboard },
   { to: '/projects',   label: 'Проекты',        icon: Icons.Boxes },
-  { to: '/tasks',      label: 'Задачи',          icon: Icons.Layers },
   { to: '/documents',  label: 'Документация',    icon: Icons.FileText },
   { to: '/clients',    label: 'Клиенты',         icon: Icons.Users },
   { to: '/team',       label: 'Команда',         icon: Icons.User },
@@ -25,6 +24,9 @@ export function AppShell() {
   const [theme, , toggleTheme] = useTheme();
   const { user, isGuest, clear } = useAuthStore();
   const navigate = useNavigate();
+
+  // Нет сессии (ни аккаунта, ни гостя) → на экран входа.
+  if (!user) return <Navigate to="/login" replace />;
 
   const initials = user?.name
     ? user.name
