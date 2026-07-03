@@ -2,14 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
-// @ts-expect-error --- IF NEEDED IN CI
 const host = process.env.TAURI_DEV_HOST;
 
 /**
  * Vite конфиг: Tauri-совместимый (fixed port, HMR-настройки).
  * Прокси /api и /health на backend NestJS (по умолчанию :3333).
  */
-export default defineConfig(async () => ({
+export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -44,6 +43,6 @@ export default defineConfig(async () => ({
     outDir: 'dist',
     sourcemap: true,
     target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
-    minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
+    minify: process.env.TAURI_ENV_DEBUG ? false : ('esbuild' as const),
   },
 }));
