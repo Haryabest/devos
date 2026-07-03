@@ -18,11 +18,22 @@ export interface TaskColumn {
   statusKey: TaskStatus;
 }
 
+export interface CommentReaction {
+  emoji: string;
+  userId: string;
+  userName: string;
+}
+
 export interface TaskComment {
   id: string;
   author: string;
+  authorId?: string | null;
   text: string;
   createdAt: string;
+  threadId?: string | null;
+  parentCommentId?: string | null;
+  reactions: CommentReaction[];
+  assigneeIds: string[];
 }
 
 export interface TaskHistoryEntry {
@@ -51,5 +62,8 @@ export interface Task {
   dependsOn: string[];
   comments: TaskComment[];
   history: TaskHistoryEntry[];
+  assigneeId: string | null;
+  estimateMinutes: number | null;
+  spentMinutes: number | null;
   createdAt: string;
 }

@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import * as Icons from '@/components/ui/icons';
 import { FigmaQuickAdd } from '@/features/projects/components/figma-quick-add';
 import { useFigmaStore } from '@/stores/figma-store';
@@ -13,7 +14,9 @@ interface ProjectFigmaCardProps {
 export function ProjectFigmaCard({ project, onAddFigma }: ProjectFigmaCardProps) {
   const figma = project.links?.figma;
   const ensureCached = useFigmaStore((s) => s.ensureCached);
+  const refreshFigma = useFigmaStore((s) => s.refresh);
   const cached = useFigmaStore((s) => (figma ? s.cache[figma.trim()] : undefined));
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!figma) return;
@@ -22,14 +25,31 @@ export function ProjectFigmaCard({ project, onAddFigma }: ProjectFigmaCardProps)
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icons.Figma className="h-4 w-4" />
-          Figma
-        </CardTitle>
-        <CardDescription>
-          Превью через oEmbed — без embed-iframe (нет ошибок авторизации Figma).
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Icons.Figma className="h-4 w-4" />
+            Figma
+          </CardTitle>
+          <CardDescription>
+            Превью через oEmbed — без embed-iframe (нет ошибок авторизации Figma).
+          </CardDescription>
+        </div>
+        {figma && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0"
+            disabled={syncing}
+            onClick={() => {
+              setSyncing(true);
+              void refreshFigma(figma).finally(() => setSyncing(false));
+            }}
+          >
+            {syncing ? <Icons.Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Sync'}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {figma ? (

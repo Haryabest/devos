@@ -40,6 +40,7 @@ interface TeamState {
   updateMemberRole: (memberId: string, role: Role) => void;
   joinSyncRoom: (projectId: string) => void;
   leaveSyncRoom: (projectId: string) => void;
+  detachJoinedProject: (projectId: string) => void;
   getProjectMembers: (projectId: string) => ProjectMember[];
   getPendingInvites: () => TeamInvite[];
   mergePendingInvites: (fresh: TeamInvite[]) => void;
@@ -240,6 +241,23 @@ export const useTeamStore = create<TeamState>()(
 
       leaveSyncRoom: (projectId) => {
         set((s) => ({ syncRooms: s.syncRooms.filter((id) => id !== projectId) }));
+      },
+
+      detachJoinedProject: (projectId) => {
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId || !get().isJoinedProject(projectId)) return;
+
+        useProjectsStore.getState().remove(projectId);
+        set((s) => ({
+          members: s.members.filter(
+            (m) => !(m.projectId === projectId && m.userId === userId),
+          ),
+          syncRooms: s.syncRooms.filter((id) => id !== projectId),
+          invites: s.invites.filter(
+            (i) => !(i.projectId === projectId && i.status === 'ACCEPTED'),
+          ),
+        }));
+        markSaved();
       },
 
       getProjectMembers: (projectId) => get().members.filter((m) => m.projectId === projectId),

@@ -4,10 +4,17 @@ import { ActivityCard } from '@/features/dashboard/components/activity-card';
 import { RecommendationsCard } from '@/features/dashboard/components/recommendations-card';
 import { ProjectQuickList } from '@/features/dashboard/components/project-quick-list';
 import { DashboardDeadlinesCard } from '@/features/dashboard/components/deadlines-card';
+import { ClientReportsCard } from '@/features/dashboard/components/client-reports-card';
+import { BurndownCard, VelocityCard, TimeTrackingCard } from '@/features/dashboard/components/charts-cards';
+import { exportSprintReviewPdf } from '@/lib/sprint-review-pdf';
+import { Button } from '@/components/ui/button';
+import { AuditLogCard } from '@/features/dashboard/components/audit-log-card';
 import { useDashboardData } from '@/features/dashboard/hooks/use-dashboard-data';
+import { useClientsStore } from '@/stores/clients-store';
 
 export function DashboardPage() {
   const workspaceName = useSettingsStore((s) => s.workspaceName);
+  const clients = useClientsStore((s) => s.clients);
   const {
     projects,
     tasks,
@@ -38,7 +45,31 @@ export function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ActivityCard activity={activity} />
+        <AuditLogCard />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <BurndownCard tasks={tasks} />
+        <VelocityCard tasks={tasks} />
+        <TimeTrackingCard tasks={tasks} />
+      </div>
+
+      {activeProjects[0] && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            exportSprintReviewPdf({ project: activeProjects[0]!, tasks, sprintName: 'Sprint Review' })
+          }
+        >
+          Sprint Review PDF
+        </Button>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <RecommendationsCard hasProjects={projects.length > 0} recommendations={recommendations} />
+        <ClientReportsCard clients={clients} projects={projects} />
       </div>
 
       <DashboardDeadlinesCard projects={projects} />

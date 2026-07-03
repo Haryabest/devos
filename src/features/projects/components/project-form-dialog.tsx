@@ -21,7 +21,7 @@ import * as Icons from '@/components/ui/icons';
 import { PROJECT_TYPES, useProjectsStore } from '@/stores/projects-store';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useClientsStore } from '@/stores/clients-store';
-import { fromDateInputValue, toDateInputValue } from '@/lib/format-date';
+import { DatePicker } from '@/components/ui/date-picker';
 import type { Project, ProjectLinks, ProjectType } from '@/shared/types';
 
 interface ProjectFormDialogProps {
@@ -50,8 +50,8 @@ export function ProjectFormDialog({
   const [type, setType] = useState<ProjectType>('WEB');
   const [groupId, setGroupId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
-  const [startAt, setStartAt] = useState('');
-  const [dueAt, setDueAt] = useState('');
+  const [startAt, setStartAt] = useState<string | null>(null);
+  const [dueAt, setDueAt] = useState<string | null>(null);
   const [links, setLinks] = useState<ProjectLinks>({});
 
   useEffect(() => {
@@ -61,8 +61,8 @@ export function ProjectFormDialog({
     setType(project?.type ?? 'WEB');
     setGroupId(project?.groupId ?? null);
     setClientId(project?.clientId ?? null);
-    setStartAt(toDateInputValue(project?.startAt));
-    setDueAt(toDateInputValue(project?.dueAt));
+    setStartAt(project?.startAt ?? null);
+    setDueAt(project?.dueAt ?? null);
     setLinks(project?.links ?? {});
   }, [open, project]);
 
@@ -77,8 +77,8 @@ export function ProjectFormDialog({
         links,
         groupId,
         clientId,
-        startAt: fromDateInputValue(startAt),
-        dueAt: fromDateInputValue(dueAt),
+        startAt,
+        dueAt,
       });
     } else {
       const created = add({
@@ -88,8 +88,8 @@ export function ProjectFormDialog({
         links,
         groupId,
         clientId,
-        startAt: fromDateInputValue(startAt),
-        dueAt: fromDateInputValue(dueAt),
+        startAt,
+        dueAt,
       });
       onCreated?.(created.id);
     }
@@ -131,22 +131,12 @@ export function ProjectFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="startAt">Начало</Label>
-              <Input
-                id="startAt"
-                type="date"
-                value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-              />
+              <Label>Начало</Label>
+              <DatePicker value={startAt} onChange={setStartAt} placeholder="Дата начала" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dueAt">Окончание</Label>
-              <Input
-                id="dueAt"
-                type="date"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-              />
+              <Label>Окончание</Label>
+              <DatePicker value={dueAt} onChange={setDueAt} placeholder="Дата окончания" />
             </div>
           </div>
 

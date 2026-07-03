@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate, Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as Icons from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,20 @@ import { useTheme } from '@/lib/use-theme';
 import { useAuthStore } from '@/stores/auth-store';
 import { AccountSwitcher } from '@/components/auth/account-switcher';
 import { GlobalSearch, useGlobalSearchHotkey } from '@/components/global-search';
+import {
+  NotificationsPanel,
+  useNotificationScanner,
+} from '@/components/notifications/notifications-panel';
+import { FileDropOverlay, useGlobalFileDrop } from '@/hooks/use-global-file-drop';
+import { requestNotificationPermission } from '@/stores/notifications-store';
+import { useNotificationsStore } from '@/stores/notifications-store';
 
 const NAV = [
   { to: '/dashboard',  label: 'Главная',       icon: Icons.LayoutDashboard },
   { to: '/projects',   label: 'Проекты',        icon: Icons.Boxes },
   { to: '/documents',  label: 'Документация',    icon: Icons.FileText },
   { to: '/clients',    label: 'Клиенты',         icon: Icons.Users },
+  { to: '/calls',      label: 'Созвоны',         icon: Icons.Video },
   { to: '/team',       label: 'Команда',         icon: Icons.User },
   { to: '/settings',   label: 'Настройки',       icon: Icons.Settings },
 ] as const;
@@ -30,8 +38,44 @@ export function AppShell() {
   const [theme, , toggleTheme] = useTheme();
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   useGlobalSearchHotkey(() => setSearchOpen(true));
+  useNotificationScanner();
+
+  const pushNotification = useNotificationsStore((s) => s.push);
+  const fileDropActive = useGlobalFileDrop((files) => {
+    const match = location.pathname.match(/\/projects\/([^/]+)\/docs/);
+    if (match) {
+      pushNotification({
+        kind: 'info',
+        title: 'Файлы получены',
+        body: `${files.length} файл(ов) — откройте документацию проекта для загрузки.`,
+        href: location.pathname,
+      });
+    } else {
+      pushNotification({
+        kind: 'info',
+        title: 'Перетащите файлы',
+        body: 'Откройте документацию проекта, чтобы прикрепить файлы.',
+      });
+    }
+  });
+
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const { projectId } = (event as CustomEvent<{ projectId: string }>).detail;
+      if (location.pathname.includes(projectId)) {
+        navigate('/projects', { replace: true });
+      }
+    };
+    window.addEventListener('devos:host-left', handler);
+    return () => window.removeEventListener('devos:host-left', handler);
+  }, [location.pathname, navigate]);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -94,13 +138,13 @@ export function AppShell() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 text-muted-foreground"
+            className="min-w-[220px] max-w-md flex-1 gap-2 text-muted-foreground"
             onClick={() => setSearchOpen(true)}
           >
-            <Icons.Search className="h-3.5 w-3.5" />
-            <span>Поиск…</span>
-            <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">
-              ⌘K
+            <Icons.Search className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Поиск по проектам, задачам, клиентам…</span>
+            <kbd className="pointer-events-none ml-auto hidden h-5 shrink-0 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
+              Ctrl+K
             </kbd>
           </Button>
           <div className="ml-auto flex items-center gap-1">
@@ -111,9 +155,7 @@ export function AppShell() {
                 <Icons.Moon className="h-4 w-4" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" aria-label="Уведомления">
-              <Icons.Bell className="h-4 w-4" />
-            </Button>
+            <NotificationsPanel />
           </div>
         </header>
 
@@ -129,6 +171,7 @@ export function AppShell() {
       </div>
       </div>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <FileDropOverlay active={fileDropActive} />
     </div>
   );
 }

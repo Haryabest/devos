@@ -6,7 +6,8 @@ export type SyncStoreName =
   | 'api'
   | 'groups'
   | 'team'
-  | 'clients';
+  | 'clients'
+  | 'whiteboard';
 
 export interface SyncMessage {
   clientId: string;
@@ -21,4 +22,16 @@ export interface CollabClientMeta {
   clientId: string;
   userId: string | null;
   userName: string | null;
+}
+
+export type CollabRoomRole = 'host' | 'guest';
+
+export interface CollabRoomJoin {
+  projectId: string;
+  role: CollabRoomRole;
+}
+
+export interface CollabHostLeft {
+  projectId: string;
+  userId: string | null;
 }

@@ -10,6 +10,8 @@ import { ProjectTaskDetailPage } from '@/pages/project-task-detail';
 import { ProjectDocsPage } from '@/pages/project-docs';
 import { ProjectApiPage } from '@/pages/project-api';
 import { ProjectRoadmapPage } from '@/pages/project-roadmap';
+import { ProjectWhiteboardPage } from '@/pages/project-whiteboard';
+import { CallsPage } from '@/pages/calls';
 import { DocumentsPage } from '@/pages/documents';
 import { ClientsPage } from '@/pages/clients';
 import { ClientDetailPage } from '@/pages/client-detail';
@@ -41,9 +43,11 @@ export const router = createBrowserRouter([
       { path: '/projects/:projectId/docs', element: <ProjectDocsPage /> },
       { path: '/projects/:projectId/api', element: <ProjectApiPage /> },
       { path: '/projects/:projectId/roadmap', element: <ProjectRoadmapPage /> },
+      { path: '/projects/:projectId/whiteboard', element: <ProjectWhiteboardPage /> },
       { path: '/documents', element: <DocumentsPage /> },
       { path: '/clients', element: <ClientsPage /> },
       { path: '/clients/:clientId', element: <ClientDetailPage /> },
+      { path: '/calls', element: <CallsPage /> },
       { path: '/team', element: <TeamPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/profile', element: <ProfilePage /> },

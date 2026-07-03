@@ -27,6 +27,11 @@ import type { Priority } from '@/shared/types';
 import { PRIORITY_DOT } from '@/features/tasks/constants';
 import { TaskDetailSidePanel } from '@/features/tasks/components/task-detail-side-panel';
 import { DatePicker } from '@/components/ui/date-picker';
+import { useAuthStore } from '@/stores/auth-store';
+import { useTeamStore } from '@/stores/team-store';
+import { useNotificationsStore } from '@/stores/notifications-store';
+import { notifyTaskMentions } from '@/lib/mention-notify';
+import type { MentionCandidate } from '@/lib/mention-utils';
 
 export function ProjectTaskDetailPage() {
   const { projectId, taskId } = useParams();
@@ -43,8 +48,13 @@ export function ProjectTaskDetailPage() {
   const addAtt = useTasksStore((s) => s.addAttachment);
   const removeAtt = useTasksStore((s) => s.removeAttachment);
   const addComment = useTasksStore((s) => s.addComment);
+  const addCommentReply = useTasksStore((s) => s.addCommentReply);
+  const toggleCommentReaction = useTasksStore((s) => s.toggleCommentReaction);
   const addDependency = useTasksStore((s) => s.addDependency);
   const removeDependency = useTasksStore((s) => s.removeDependency);
+  const user = useAuthStore((s) => s.user);
+  const pushNotification = useNotificationsStore((s) => s.push);
+  const members = useTeamStore((s) => s.members);
 
   const [draftTitle, setDraftTitle] = useState(task?.title ?? '');
   const [draftDescription, setDraftDescription] = useState(task?.description ?? '');
@@ -77,7 +87,7 @@ export function ProjectTaskDetailPage() {
 
   if (!project) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="w-full max-w-4xl p-6">
         <Card>
           <CardHeader>
             <CardTitle>Проект не найден</CardTitle>
@@ -95,7 +105,7 @@ export function ProjectTaskDetailPage() {
 
   if (!task || task.projectId !== projectId) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="w-full max-w-4xl p-6">
         <Card>
           <CardHeader>
             <CardTitle>Задача не найдена</CardTitle>
@@ -119,6 +129,17 @@ export function ProjectTaskDetailPage() {
 
   const column = columns.find((c) => c.id === task.columnId);
   const siblingTasks = allTasks.filter((t) => t.projectId === projectId && t.parentId === null);
+
+  const mentionCandidates = useMemo((): MentionCandidate[] => {
+    if (!projectId) return [];
+    const fromMembers = members
+      .filter((m) => m.projectId === projectId)
+      .map((m) => ({ id: m.userId, name: m.name, email: m.email }));
+    if (user && !fromMembers.some((m) => m.id === user.id)) {
+      fromMembers.push({ id: user.id, name: user.name, email: user.email });
+    }
+    return fromMembers;
+  }, [members, projectId, user]);
 
   function handleDelete() {
     setDeleteConfirm({
@@ -146,7 +167,7 @@ export function ProjectTaskDetailPage() {
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="min-w-0 flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-4xl px-8 py-8">
+          <div className="w-full max-w-5xl px-6 py-8">
             <div className="mb-4 flex items-start gap-3">
               <Checkbox
                 checked={task.done}
@@ -228,6 +249,34 @@ export function ProjectTaskDetailPage() {
                   placeholder="Срок"
                 />
               </div>
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Est"
+                  className="h-8"
+                  value={task.estimateMinutes ?? ''}
+                  onChange={(e) =>
+                    update(task.id, {
+                      estimateMinutes: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                />
+              </div>
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Spent"
+                  className="h-8"
+                  value={task.spentMinutes ?? ''}
+                  onChange={(e) =>
+                    update(task.id, {
+                      spentMinutes: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                />
+              </div>
             </div>
 
             <div className="mt-6">
@@ -244,6 +293,8 @@ export function ProjectTaskDetailPage() {
           task={task}
           subtasks={subtasks}
           siblingTasks={siblingTasks}
+          mentionCandidates={mentionCandidates}
+          currentUserId={user?.id}
           attachments={task.attachments}
           onAddSubtask={(title) =>
             addSub({
@@ -260,7 +311,33 @@ export function ProjectTaskDetailPage() {
               onConfirm: () => remove(s.id),
             })
           }
-          onAddComment={(text) => addComment(task.id, text)}
+          onReply={(parentId, text) => {
+            addCommentReply(task.id, parentId, text);
+            notifyTaskMentions({
+              text,
+              taskId: task.id,
+              taskTitle: task.title,
+              projectId: task.projectId,
+              candidates: mentionCandidates,
+              currentUserId: user?.id,
+              authorName: user?.name ?? 'Пользователь',
+              push: pushNotification,
+            });
+          }}
+          onAddComment={(text) => {
+            addComment(task.id, text);
+            notifyTaskMentions({
+              text,
+              taskId: task.id,
+              taskTitle: task.title,
+              projectId: task.projectId,
+              candidates: mentionCandidates,
+              currentUserId: user?.id,
+              authorName: user?.name ?? 'Пользователь',
+              push: pushNotification,
+            });
+          }}
+          onToggleReaction={(commentId, emoji) => toggleCommentReaction(task.id, commentId, emoji)}
           onAddDependency={(id) => addDependency(task.id, id)}
           onRemoveDependency={(id) => removeDependency(task.id, id)}
           onAddAttachment={(a) => addAtt(task.id, a)}

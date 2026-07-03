@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createScopedPersistStorage } from '@/lib/scoped-storage';
-import type { GitCommit } from '@/lib/git';
-import { fetchGitHubCommits, parseGitHubUrl } from '@/lib/git';
+import type { GitCommit, GitPullRequest } from '@/lib/git';
+import { fetchGitHubCommits, fetchGitHubPullRequests, parseGitHubUrl } from '@/lib/git';
 import { useSaveStore } from '@/stores/save-store';
 
 function normalizeCommits(commits: GitCommit[]): GitCommit[] {
@@ -17,6 +17,7 @@ function normalizeCommits(commits: GitCommit[]): GitCommit[] {
 
 interface ProjectGitCache {
   commits: GitCommit[];
+  pullRequests: GitPullRequest[];
   fetchedAt: string;
   error?: string;
 }
@@ -24,6 +25,7 @@ interface ProjectGitCache {
 interface GitState {
   cache: Record<string, ProjectGitCache>;
   fetchForProject: (projectId: string, gitUrl: string) => Promise<void>;
+  fetchPullRequests: (projectId: string, gitUrl: string) => Promise<void>;
   clearProject: (projectId: string) => void;
 }
 
@@ -40,6 +42,7 @@ export const useGitStore = create<GitState>()(
               ...s.cache,
               [projectId]: {
                 commits: [],
+                pullRequests: [],
                 fetchedAt: new Date().toISOString(),
                 error: 'Поддерживаются только публичные GitHub-репозитории',
               },
@@ -52,7 +55,11 @@ export const useGitStore = create<GitState>()(
           set((s) => ({
             cache: {
               ...s.cache,
-              [projectId]: { commits, fetchedAt: new Date().toISOString() },
+              [projectId]: {
+                commits,
+                pullRequests: s.cache[projectId]?.pullRequests ?? [],
+                fetchedAt: new Date().toISOString(),
+              },
             },
           }));
           useSaveStore.getState().markSaved();
@@ -62,11 +69,32 @@ export const useGitStore = create<GitState>()(
               ...s.cache,
               [projectId]: {
                 commits: s.cache[projectId]?.commits ?? [],
+                pullRequests: s.cache[projectId]?.pullRequests ?? [],
                 fetchedAt: new Date().toISOString(),
                 error: e instanceof Error ? e.message : 'Ошибка загрузки',
               },
             },
           }));
+        }
+      },
+
+      fetchPullRequests: async (projectId, gitUrl) => {
+        const repo = parseGitHubUrl(gitUrl);
+        if (!repo) return;
+        try {
+          const pullRequests = await fetchGitHubPullRequests(repo.owner, repo.repo);
+          set((s) => ({
+            cache: {
+              ...s.cache,
+              [projectId]: {
+                commits: s.cache[projectId]?.commits ?? [],
+                pullRequests,
+                fetchedAt: s.cache[projectId]?.fetchedAt ?? new Date().toISOString(),
+              },
+            },
+          }));
+        } catch {
+          /* PR optional */
         }
       },
 
@@ -82,7 +110,7 @@ export const useGitStore = create<GitState>()(
       name: 'devos:git',
       skipHydration: true,
       storage: createJSONStorage(() => createScopedPersistStorage('devos:git')),
-      version: 2,
+      version: 3,
       migrate: (persistedState) => {
         const s = persistedState as { cache?: Record<string, ProjectGitCache> };
         if (!s?.cache) return persistedState;
@@ -90,7 +118,11 @@ export const useGitStore = create<GitState>()(
           cache: Object.fromEntries(
             Object.entries(s.cache).map(([id, entry]) => [
               id,
-              { ...entry, commits: normalizeCommits(entry.commits ?? []) },
+              {
+                ...entry,
+                commits: normalizeCommits(entry.commits ?? []),
+                pullRequests: entry.pullRequests ?? [],
+              },
             ]),
           ),
         };

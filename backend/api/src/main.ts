@@ -20,6 +20,11 @@ async function bootstrap() {
     { bufferLogs: true },
   );
 
+  await app.register(await import('@fastify/compress').then((m) => m.default), {
+    global: true,
+    encodings: ['gzip', 'deflate'],
+  });
+
   await app.register(await import('@fastify/helmet').then((m) => m.default), {
     contentSecurityPolicy: false,
   });

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import * as Icons from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { DOC_FORMAT_LABELS } from '@/lib/doc-formats';
@@ -10,6 +9,7 @@ interface DocFolderTreeProps {
   folders: DocFolder[];
   docs: Doc[];
   activeId: string | null;
+  filter?: string;
   onSelectDoc: (id: string) => void;
   onCreatePage: (folderId: string | null) => void;
   onCreateFolder: (parentId: string | null) => void;
@@ -205,6 +205,7 @@ export function DocFolderTree({
   folders,
   docs,
   activeId,
+  filter = '',
   onSelectDoc,
   onCreatePage,
   onCreateFolder,
@@ -214,7 +215,6 @@ export function DocFolderTree({
   onRemoveDoc,
 }: DocFolderTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(folders.map((f) => f.id)));
-  const [filter, setFilter] = useState('');
 
   const rootFolders = useMemo(() => folders.filter((f) => !f.parentId), [folders]);
   const rootDocs = useMemo(() => docs.filter((d) => !d.folderId), [docs]);
@@ -241,15 +241,7 @@ export function DocFolderTree({
   if (filteredDocs) {
     return (
       <div className="flex h-full flex-col">
-        <div className="px-2 pb-2">
-          <Input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Поиск…"
-            className="h-8 text-xs"
-          />
-        </div>
-        <div className="flex-1 overflow-auto px-1 pb-2">
+        <div className="flex-1 overflow-auto px-1 pb-2 pt-2">
           {filteredDocs.length === 0 ? (
             <p className="px-2 py-4 text-xs text-muted-foreground">Ничего не найдено</p>
           ) : (
@@ -271,15 +263,7 @@ export function DocFolderTree({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-2 pb-2">
-        <Input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Поиск…"
-          className="h-8 text-xs"
-        />
-      </div>
-      <div className="flex-1 overflow-auto px-1 pb-2">
+      <div className="flex-1 overflow-auto px-1 pb-2 pt-2">
         {rootDocs.map((d) => (
           <DocRow
             key={d.id}

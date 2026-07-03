@@ -2,6 +2,8 @@ import type { ApiEndpoint } from '@/shared/types';
 import type { Doc } from '@/shared/types';
 import type { Project } from '@/shared/types';
 import type { Task, TaskColumn } from '@/shared/types';
+import type { WhiteboardData } from '@/shared/types/whiteboard';
+import { normalizeBoard } from '@/shared/types/whiteboard';
 import { useTeamStore } from '@/stores/team-store';
 
 export function getActiveSyncProjectIds(): string[] {
@@ -73,5 +75,19 @@ export function mergeEndpoints(existing: ApiEndpoint[], incoming: ApiEndpoint[])
   return [
     ...existing.filter((e) => !projectIds.has(e.projectId)),
     ...incoming,
+  ];
+}
+
+export function scopeWhiteboards(boards: WhiteboardData[]): WhiteboardData[] {
+  const ids = new Set(getActiveSyncProjectIds());
+  if (ids.size === 0) return boards;
+  return boards.filter((b) => ids.has(b.projectId));
+}
+
+export function mergeWhiteboards(existing: WhiteboardData[], incoming: WhiteboardData[]): WhiteboardData[] {
+  const byProject = new Map(incoming.map((b) => [b.projectId, normalizeBoard(b)]));
+  return [
+    ...existing.filter((b) => !byProject.has(b.projectId)),
+    ...byProject.values(),
   ];
 }

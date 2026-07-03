@@ -3,10 +3,12 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import type { Project, ProjectLinks, ProjectStatus, ProjectType } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
+import { auditLog } from '@/stores/audit-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
 import { useApiStore } from '@/stores/api-store';
 import { useRoadmapStore } from '@/stores/roadmap-store';
+import { useWhiteboardStore } from '@/stores/whiteboard-store';
 
 /**
  * Локальный стор проектов — работает без backend (данные в localStorage).
@@ -71,6 +73,7 @@ export const useProjectsStore = create<ProjectsState>()(
         };
         set((s) => ({ projects: [project, ...s.projects] }));
         useSaveStore.getState().markSaved();
+        auditLog({ kind: 'project', action: 'create', title: project.name, projectId: project.id });
         return project;
       },
       update: (id, patch) => {
@@ -80,12 +83,15 @@ export const useProjectsStore = create<ProjectsState>()(
         useSaveStore.getState().markSaved();
       },
       remove: (id) => {
+        const name = get().projects.find((p) => p.id === id)?.name;
         set((s) => ({ projects: s.projects.filter((p) => p.id !== id) }));
         useTasksStore.getState().removeByProject(id);
         useDocsStore.getState().removeByProject(id);
         useApiStore.getState().removeByProject(id);
         useRoadmapStore.getState().removeByProject(id);
+        useWhiteboardStore.getState().removeByProject(id);
         useSaveStore.getState().markSaved();
+        if (name) auditLog({ kind: 'project', action: 'delete', title: name, projectId: id });
       },
       getById: (id) => get().projects.find((p) => p.id === id),
       setFromServer: (projects) => {

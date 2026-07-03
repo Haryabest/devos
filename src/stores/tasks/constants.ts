@@ -1,4 +1,5 @@
-import type { Attachment, AttachmentKind, Priority, TaskColumn, TaskStatus } from '@/shared/types';
+import type { Attachment, AttachmentKind, Priority, TaskColumn, TaskStatus, TaskComment } from '@/shared/types';
+import { normalizeComment } from '@/lib/task-comments-utils';
 
 export const TASK_AUTOSAVE_DELAY = 3000;
 
@@ -127,8 +128,23 @@ export function migrateTasksState(state: unknown): unknown {
       startAt: (t.startAt as string | null) ?? null,
       dueAt: (t.dueAt as string | null) ?? null,
       dependsOn: (t.dependsOn as string[]) ?? [],
-      comments: (t.comments as unknown[]) ?? [],
+      comments: ((t.comments as TaskComment[]) ?? []).map((c) =>
+        normalizeComment({
+          id: c.id,
+          author: c.author,
+          authorId: (c as TaskComment).authorId,
+          text: c.text,
+          createdAt: c.createdAt,
+          threadId: (c as TaskComment).threadId,
+          parentCommentId: (c as TaskComment).parentCommentId,
+          reactions: (c as TaskComment).reactions,
+          assigneeIds: (c as TaskComment).assigneeIds,
+        }),
+      ),
       history: (t.history as unknown[]) ?? [],
+      assigneeId: (t.assigneeId as string | null) ?? null,
+      estimateMinutes: (t.estimateMinutes as number | null) ?? null,
+      spentMinutes: (t.spentMinutes as number | null) ?? null,
       createdAt: (t.createdAt as string) ?? new Date().toISOString(),
     };
   });

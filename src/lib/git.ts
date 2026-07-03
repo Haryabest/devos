@@ -64,36 +64,43 @@ async function fetchCommitDetail(
   };
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await fn(items[i]!);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
+
 async function enrichCommits(
   owner: string,
   repo: string,
   items: GitHubCommitItem[],
 ): Promise<GitCommit[]> {
-  const batchSize = 8;
-  const results: GitCommit[] = [];
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const stats = await Promise.all(
-      batch.map((c) => fetchCommitDetail(owner, repo, c.sha)),
-    );
-    batch.forEach((c, idx) => {
-      const s = stats[idx]!;
-      results.push({
-        sha: c.sha.slice(0, 7),
-        fullSha: c.sha,
-        message: c.commit.message.split('\n')[0] ?? '',
-        author: c.author?.login ?? c.commit.author.name,
-        authorEmail: c.commit.author.email,
-        date: c.commit.author.date,
-        additions: s.additions,
-        deletions: s.deletions,
-        total: s.total,
-      });
-    });
-  }
-
-  return results;
+  const stats = await mapWithConcurrency(items, 3, (c) => fetchCommitDetail(owner, repo, c.sha));
+  return items.map((c, idx) => {
+    const s = stats[idx]!;
+    return {
+      sha: c.sha.slice(0, 7),
+      fullSha: c.sha,
+      message: c.commit.message.split('\n')[0] ?? '',
+      author: c.author?.login ?? c.commit.author.name,
+      authorEmail: c.commit.author.email,
+      date: c.commit.author.date,
+      additions: s.additions,
+      deletions: s.deletions,
+      total: s.total,
+    };
+  });
 }
 
 export async function fetchGitHubCommits(
@@ -114,6 +121,50 @@ export async function fetchGitHubCommits(
   }
   const data = (await res.json()) as GitHubCommitItem[];
   return enrichCommits(owner, repo, data);
+}
+
+export interface GitPullRequest {
+  number: number;
+  title: string;
+  author: string;
+  state: string;
+  createdAt: string;
+  htmlUrl: string;
+  draft: boolean;
+}
+
+interface GitHubPullItem {
+  number: number;
+  title: string;
+  state: string;
+  draft?: boolean;
+  html_url: string;
+  created_at: string;
+  user?: { login: string } | null;
+}
+
+export async function fetchGitHubPullRequests(
+  owner: string,
+  repo: string,
+  perPage = 10,
+): Promise<GitPullRequest[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${perPage}`,
+    { headers: { Accept: 'application/vnd.github+json' } },
+  );
+  if (!res.ok) {
+    throw new Error(res.status === 404 ? 'PR не найдены или репозиторий приватный' : `GitHub API: ${res.status}`);
+  }
+  const data = (await res.json()) as GitHubPullItem[];
+  return data.map((pr) => ({
+    number: pr.number,
+    title: pr.title,
+    author: pr.user?.login ?? 'unknown',
+    state: pr.state,
+    createdAt: pr.created_at,
+    htmlUrl: pr.html_url,
+    draft: pr.draft ?? false,
+  }));
 }
 
 export interface CommitStats {

@@ -8,6 +8,9 @@ import { AppearanceSection } from '@/features/settings/components/appearance-sec
 import { AiContextSection } from '@/features/settings/components/ai-context-section';
 import { AutosaveSection } from '@/features/settings/components/autosave-section';
 import { IntegrationsSection } from '@/features/settings/components/integrations-section';
+import { IntegrationsCredentialsSection } from '@/features/settings/components/integrations-credentials-section';
+import { WebhooksSection } from '@/features/settings/components/webhooks-section';
+import { AutomationSection } from '@/features/settings/components/automation-section';
 import { DataSection } from '@/features/settings/components/data-section';
 import { PageContainer } from '@/components/layout/page-container';
 
@@ -93,6 +96,12 @@ export function SettingsPage() {
           />
 
           <IntegrationsSection />
+
+          <IntegrationsCredentialsSection />
+
+          <WebhooksSection />
+
+          <AutomationSection />
 
           <DataSection onExport={handleExport} onClear={() => setClearOpen(true)} />
         </div>

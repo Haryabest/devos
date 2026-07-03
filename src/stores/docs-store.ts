@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Attachment, AttachmentKind, Doc, DocFolder, DocRevision } from '@/shared/types';
 import { detectDocFormat, docTitleFromFileName } from '@/lib/doc-formats';
-import { createScopedPersistStorage } from '@/lib/scoped-storage';
+import { createScopedIdbStorage } from '@/lib/idb-scoped-storage';
 import {
   formatDocFileLimitMessage,
   formatStorageLimitMessage,
@@ -484,7 +484,7 @@ export const useDocsStore = create<DocsState>()(
         return s as unknown as DocsState;
       },
       storage: createJSONStorage(() =>
-        createScopedPersistStorage('devos:docs', {
+        createScopedIdbStorage('devos:docs', {
           quotaMessage:
             'Недостаточно места в локальном хранилище. Удалите старые файлы в документации.',
         }),

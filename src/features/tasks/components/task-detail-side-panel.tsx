@@ -5,15 +5,20 @@ import * as Icons from '@/components/ui/icons';
 import { SubtaskList, AddSubtask } from '@/features/tasks/components/subtask-list';
 import { TaskExtras } from '@/features/tasks/components/task-extras';
 import type { Attachment, AttachmentKind, Task } from '@/shared/types';
+import type { MentionCandidate } from '@/lib/mention-utils';
 
 interface TaskDetailSidePanelProps {
   task: Task;
   subtasks: Task[];
   siblingTasks: Task[];
   attachments: Attachment[];
+  mentionCandidates?: MentionCandidate[];
   onAddSubtask: (title: string) => void;
   onRequestRemoveSubtask: (s: Task) => void;
   onAddComment: (text: string) => void;
+  onReply?: (parentId: string, text: string) => void;
+  onToggleReaction?: (commentId: string, emoji: string) => void;
+  currentUserId?: string | null;
   onAddDependency: (taskId: string) => void;
   onRemoveDependency: (taskId: string) => void;
   onAddAttachment: (a: { kind: AttachmentKind; label: string; value: string }) => void;
@@ -25,9 +30,13 @@ export function TaskDetailSidePanel({
   subtasks,
   siblingTasks,
   attachments,
+  mentionCandidates,
   onAddSubtask,
   onRequestRemoveSubtask,
   onAddComment,
+  onReply,
+  onToggleReaction,
+  currentUserId,
   onAddDependency,
   onRemoveDependency,
   onAddAttachment,
@@ -81,7 +90,11 @@ export function TaskDetailSidePanel({
             <TaskExtras
               task={task}
               siblingTasks={siblingTasks}
+              mentionCandidates={mentionCandidates}
               onAddComment={onAddComment}
+              onReply={onReply}
+              onToggleReaction={onToggleReaction}
+              currentUserId={currentUserId}
               onAddDependency={() => {}}
               onRemoveDependency={() => {}}
               sections={['comments']}

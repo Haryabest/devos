@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { Attachment, Task, TaskComment, TaskHistoryEntry } from '@/shared/types';
-import { createScopedPersistStorage } from '@/lib/scoped-storage';
+import type { Attachment, Task, TaskHistoryEntry } from '@/shared/types';
+import { createScopedIdbStorage } from '@/lib/idb-scoped-storage';
 import { formatStorageLimitMessage, isDataUrlTooLarge } from '@/lib/storage-limits';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSaveStore } from '@/stores/save-store';
 import { getAutosaveDelayMs } from '@/stores/settings-store';
+import {
+  normalizeComment,
+  parseAssigneeFromText,
+  toggleReaction,
+} from '@/lib/task-comments-utils';
 import {
   COLUMN_COLORS,
   createUid,
@@ -57,7 +62,9 @@ interface TasksState {
 
   addAttachment: (taskId: string, input: NewAttachment) => void;
   removeAttachment: (taskId: string, attachmentId: string) => void;
-  addComment: (taskId: string, text: string) => void;
+  addComment: (taskId: string, text: string, parentCommentId?: string | null) => void;
+  addCommentReply: (taskId: string, parentCommentId: string, text: string) => void;
+  toggleCommentReaction: (taskId: string, commentId: string, emoji: string) => void;
   addDependency: (taskId: string, dependsOnId: string) => void;
   removeDependency: (taskId: string, dependsOnId: string) => void;
 }
@@ -146,6 +153,9 @@ export const useTasksStore = create<TasksState>()(
           dependsOn: [],
           comments: [],
           history: [],
+          assigneeId: null,
+          estimateMinutes: null,
+          spentMinutes: null,
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ tasks: [...s.tasks, task] }));
@@ -303,17 +313,55 @@ export const useTasksStore = create<TasksState>()(
         }));
         markSaved();
       },
-      addComment: (taskId, text) => {
-        const comment: TaskComment = {
+      addComment: (taskId, text, parentCommentId = null) => {
+        const user = useAuthStore.getState().user;
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const comment = normalizeComment({
           id: createUid(),
           author: currentAuthor(),
-          text: text.trim(),
+          authorId: user?.id ?? null,
+          text: trimmed,
           createdAt: new Date().toISOString(),
-        };
-        if (!comment.text) return;
+          parentCommentId,
+          threadId: parentCommentId,
+          reactions: [],
+          assigneeIds: [],
+        });
+        const assignToken = parseAssigneeFromText(trimmed);
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== taskId) return t;
+            const next = { ...t, comments: [...t.comments, comment] };
+            if (assignToken && user) {
+              next.assigneeId = assignToken;
+            }
+            return next;
+          }),
+        }));
+        markSaved();
+      },
+      addCommentReply: (taskId, parentCommentId, text) => {
+        get().addComment(taskId, text, parentCommentId);
+      },
+      toggleCommentReaction: (taskId, commentId, emoji) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
         set((s) => ({
           tasks: s.tasks.map((t) =>
-            t.id === taskId ? { ...t, comments: [...t.comments, comment] } : t,
+            t.id !== taskId
+              ? t
+              : {
+                  ...t,
+                  comments: t.comments.map((c) =>
+                    c.id !== commentId
+                      ? c
+                      : {
+                          ...c,
+                          reactions: toggleReaction(c.reactions, emoji, user.id, user.name),
+                        },
+                  ),
+                },
           ),
         }));
         markSaved();
@@ -346,10 +394,10 @@ export const useTasksStore = create<TasksState>()(
     {
       name: 'devos:tasks',
       skipHydration: true,
-      version: 3,
+      version: 4,
       migrate: migrateTasksState,
       storage: createJSONStorage(() =>
-        createScopedPersistStorage('devos:tasks', {
+        createScopedIdbStorage('devos:tasks', {
           quotaMessage:
             'Недостаточно места в локальном хранилище. Удалите старые вложения или большие файлы в задачах.',
         }),

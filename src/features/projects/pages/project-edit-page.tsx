@@ -27,7 +27,7 @@ export function ProjectEditPage() {
   }
 
   return (
-    <PageContainer variant="prose">
+    <PageContainer>
       <BreadcrumbBack label={project.name} to={`/projects/${project.id}`} className="mb-4" />
       <header className="mb-8 space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Редактирование</h1>

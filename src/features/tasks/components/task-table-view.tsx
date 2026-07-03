@@ -18,7 +18,7 @@ export function TaskTableView({ columns, tasks, onOpen, onRemove }: TaskTableVie
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-lg border border-border/60">
+      <div className="w-full max-w-5xl overflow-hidden rounded-lg border border-border/60">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/60 bg-muted/30 text-left text-xs text-muted-foreground">

@@ -202,3 +202,10 @@
   margin: 0.6rem 0;
   display: block;
 }
+
+/* Apple-style emoji rendering for comment reactions */
+.apple-emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-variant-emoji: emoji;
+  -webkit-font-smoothing: antialiased;
+}

@@ -13,12 +13,12 @@ export function IntegrationsSection() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Интеграции</CardTitle>
-        <CardDescription>GitHub, Figma — приоритет по roadmap.</CardDescription>
+        <CardDescription>GitHub PR, Figma sync, Slack/Telegram webhooks.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <IntegrationRow icon={Icons.Github} name="GitHub" status="Ссылка в карточке проекта" />
-        <IntegrationRow icon={Icons.Figma} name="Figma" status="Превью в проекте" />
-        <IntegrationRow icon={Icons.Plug} name="API / Webhooks" status="Скоро" disabled />
+        <IntegrationRow icon={Icons.Github} name="GitHub" status="Коммиты + open PR в проекте" />
+        <IntegrationRow icon={Icons.Figma} name="Figma" status="oEmbed превью + ручной sync" />
+        <IntegrationRow icon={Icons.Plug} name="Webhooks" status="Настройки → Webhooks" />
       </CardContent>
     </Card>
   );

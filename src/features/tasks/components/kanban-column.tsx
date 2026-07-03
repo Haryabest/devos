@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,13 @@ export function KanbanColumn({
   const sorted = useMemo(() => [...tasks].sort((a, b) => a.order - b.order), [tasks]);
   const allTasks = useTasksStore((s) => s.tasks);
   const childCount = (id: string) => allTasks.filter((t) => t.parentId === id).length;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 96,
+    overscan: 4,
+  });
 
   function commitName() {
     const v = name.trim();
@@ -143,16 +151,32 @@ export function KanbanColumn({
       </div>
 
       <SortableContext items={sorted.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-2 overflow-y-auto px-2 py-1">
-          {sorted.map((t) => (
-            <SortableTaskCard
-              key={t.id}
-              task={t}
-              subtaskCount={childCount(t.id)}
-              onOpen={() => onOpenTask(t)}
-              onRemove={() => onRemoveTask(t)}
-            />
-          ))}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 py-1">
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((vi) => {
+              const t = sorted[vi.index]!;
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${vi.start}px)`,
+                  }}
+                  className="pb-2"
+                >
+                  <SortableTaskCard
+                    task={t}
+                    subtaskCount={childCount(t.id)}
+                    onOpen={() => onOpenTask(t)}
+                    onRemove={() => onRemoveTask(t)}
+                  />
+                </div>
+              );
+            })}
+          </div>
           {sorted.length === 0 && (
             <p className="px-2 py-6 text-center text-xs text-muted-foreground">
               Перетащите сюда задачу или добавьте новую.

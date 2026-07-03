@@ -173,9 +173,22 @@ model Project {
   documentFolders DocumentFolder[]
   files     File[]
   milestones Milestone[]
+  whiteboard Whiteboard?
 
   @@index([workspaceId, status])
   @@index([clientId])
+}
+
+model Whiteboard {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  content   Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 // ─────────────────────────────────────────

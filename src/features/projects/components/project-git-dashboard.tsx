@@ -29,12 +29,14 @@ export function ProjectGitDashboard({
 }: ProjectGitDashboardProps) {
   const cache = useGitStore((s) => s.cache[projectId]);
   const fetchForProject = useGitStore((s) => s.fetchForProject);
+  const fetchPullRequests = useGitStore((s) => s.fetchPullRequests);
   const [authorFilter, setAuthorFilter] = useState<string>('__all');
   const [loading, setLoading] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const commits = cache?.commits ?? [];
+  const pullRequests = cache?.pullRequests ?? [];
   const authors = useMemo(
     () => [...new Set(commits.map((c) => c.author))].sort(),
     [commits],
@@ -57,6 +59,7 @@ export function ProjectGitDashboard({
     if (!gitUrl) return;
     setLoading(true);
     await fetchForProject(projectId, gitUrl);
+    await fetchPullRequests(projectId, gitUrl);
     setLoading(false);
   }
 
@@ -174,6 +177,32 @@ export function ProjectGitDashboard({
                       </div>
                     </div>
                   ))}
+              </div>
+            )}
+
+            {pullRequests.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Pull Requests (review)</p>
+                {pullRequests.slice(0, 6).map((pr) => (
+                  <a
+                    key={pr.number}
+                    href={pr.htmlUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start justify-between gap-2 rounded-md border border-border/40 px-3 py-2 text-sm hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        #{pr.number} {pr.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {pr.author} · {formatDateTime(pr.createdAt)}
+                        {pr.draft ? ' · draft' : ''}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">{pr.state}</Badge>
+                  </a>
+                ))}
               </div>
             )}
 

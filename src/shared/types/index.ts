@@ -2,7 +2,7 @@
 export type { Role, Priority, ProjectType, ProjectStatus, HealthScore } from './project';
 export type { ProjectLinks, Project, ProjectGroup } from './project';
 export type { AttachmentKind, Attachment } from './attachment';
-export type { TaskColumn, Task, TaskStatus, TaskComment, TaskHistoryEntry } from './task';
+export type { TaskColumn, Task, TaskStatus, TaskComment, TaskHistoryEntry, CommentReaction } from './task';
 export type { RoadmapColumn, RoadmapCard } from './roadmap';
 export type { HttpMethod, ApiEndpoint } from './api';
 export type { Doc, DocFolder, DocFormat, DocRevision } from './doc';

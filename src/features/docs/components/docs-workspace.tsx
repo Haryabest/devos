@@ -10,6 +10,7 @@ import { DocFileViewer } from '@/features/docs/components/doc-file-viewer';
 import * as Icons from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { DOC_FORMAT_ACCEPT } from '@/lib/doc-formats';
+import { exportDocAsMarkdown } from '@/lib/export-doc-markdown';
 import { formatDateTime } from '@/lib/format-date';
 import { useDocsStore } from '@/stores/docs-store';
 
@@ -39,6 +40,7 @@ export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsW
 
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [uploadFolderId, setUploadFolderId] = useState<string | null>(null);
+  const [docFilter, setDocFilter] = useState('');
 
   const projectDocs = useMemo(
     () => docs.filter((d) => d.projectId === projectId),
@@ -157,10 +159,29 @@ export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsW
               <Icons.Plus className="h-4 w-4" />
               Страница
             </Button>
+            {active && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => exportDocAsMarkdown(active)}
+              >
+                <Icons.FileText className="h-4 w-4" />
+                Markdown
+              </Button>
+            )}
             {active?.format === 'page' && (
               <RichEditorToolbar controller={editor} className="max-w-full overflow-x-auto" />
             )}
           </div>
+        </div>
+        <div className="mt-4 max-w-sm">
+          <Input
+            value={docFilter}
+            onChange={(e) => setDocFilter(e.target.value)}
+            placeholder="Поиск по документам…"
+            className="h-8 text-xs"
+          />
         </div>
         <input
           ref={uploadInputRef}
@@ -177,6 +198,7 @@ export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsW
             folders={projectFolders}
             docs={projectDocs}
             activeId={active?.id ?? null}
+            filter={docFilter}
             onSelectDoc={handleSelectDoc}
             onCreatePage={handleCreatePage}
             onCreateFolder={handleCreateFolder}

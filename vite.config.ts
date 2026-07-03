@@ -21,7 +21,9 @@ export default defineConfig(() => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    // Явный IPv4 loopback — иначе на Windows Node может слушать ::1,
+    // а Tauri health-check на localhost зависает.
+    host: host || '127.0.0.1',
     hmr: host
       ? { protocol: 'ws', host, port: 1421 }
       : undefined,

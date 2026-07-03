@@ -18,7 +18,7 @@ export function TaskListView({ columns, tasks, onOpen, onRemove }: TaskListViewP
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="mx-auto max-w-3xl space-y-8">
+      <div className="w-full max-w-3xl space-y-8">
         {columns.map((col) => {
           const colTasks = tasks
             .filter((t) => t.columnId === col.id)

@@ -51,4 +51,40 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleSyncRequest(@ConnectedSocket() client: WebSocket) {
     this.collab.requestSync(client);
   }
+
+  @SubscribeMessage('room-join')
+  handleRoomJoin(
+    @ConnectedSocket() client: WebSocket,
+    @MessageBody() data: { projectId?: string; role?: 'host' | 'guest' },
+  ) {
+    if (!data?.projectId || (data.role !== 'host' && data.role !== 'guest')) return;
+    this.collab.joinRoom(client, { projectId: data.projectId, role: data.role });
+  }
+
+  @SubscribeMessage('room-leave')
+  handleRoomLeave(
+    @ConnectedSocket() client: WebSocket,
+    @MessageBody() data: { projectId?: string },
+  ) {
+    if (!data?.projectId) return;
+    this.collab.leaveRoom(client, data.projectId);
+  }
+
+  @SubscribeMessage('presence')
+  handlePresence(@ConnectedSocket() client: WebSocket, @MessageBody() data: Record<string, unknown>) {
+    if (!data?.projectId) return;
+    this.collab.broadcastPresence(client, data);
+  }
+
+  @SubscribeMessage('voice-signal')
+  handleVoiceSignal(@ConnectedSocket() client: WebSocket, @MessageBody() data: Record<string, unknown>) {
+    if (!data?.roomId && !data?.projectId) return;
+    this.collab.broadcastRaw(client, 'voice-signal', data);
+  }
+
+  @SubscribeMessage('yjs-update')
+  handleYjsUpdate(@ConnectedSocket() client: WebSocket, @MessageBody() data: Record<string, unknown>) {
+    if (!data?.projectId) return;
+    this.collab.broadcastRaw(client, 'yjs-update', data);
+  }
 }

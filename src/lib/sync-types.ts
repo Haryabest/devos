@@ -1,4 +1,12 @@
-export type SyncStoreName = 'projects' | 'tasks' | 'docs' | 'api' | 'groups' | 'team' | 'clients';
+export type SyncStoreName =
+  | 'projects'
+  | 'tasks'
+  | 'docs'
+  | 'api'
+  | 'groups'
+  | 'team'
+  | 'clients'
+  | 'whiteboard';
 
 export interface SyncMessage {
   clientId: string;

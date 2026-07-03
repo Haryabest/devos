@@ -7,6 +7,8 @@ export type HealthScore = 'GREEN' | 'YELLOW' | 'RED';
 export interface ProjectLinks {
   figma?: string;
   git?: string;
+  jira?: string;
+  linear?: string;
 }
 
 export interface ProjectGroup {

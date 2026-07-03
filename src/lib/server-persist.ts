@@ -224,3 +224,41 @@ export async function persistClientUpdate(client: Client): Promise<void> {
 export async function persistClientRemove(id: string): Promise<void> {
   await api<void>(`/clients/${id}`, { method: 'DELETE' });
 }
+
+export interface ApiWhiteboard {
+  projectId: string;
+  content: Record<string, unknown>;
+  updatedAt: string;
+}
+
+const whiteboardTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+export async function fetchWorkspaceWhiteboards(wsId: string) {
+  const rows = await api<ApiWhiteboard[]>(`/whiteboards?workspaceId=${encodeURIComponent(wsId)}`);
+  return rows.map((row) => ({
+    projectId: row.projectId,
+    ...(row.content as object),
+  })) as import('@/shared/types/whiteboard').WhiteboardData[];
+}
+
+export async function persistWhiteboard(board: import('@/shared/types/whiteboard').WhiteboardData): Promise<void> {
+  if (!board.projectId) return;
+  const { projectId, ...content } = board;
+  await api<ApiWhiteboard>(`/whiteboards/project/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content: { projectId, ...content } }),
+  });
+}
+
+export function persistWhiteboardDebounced(board: import('@/shared/types/whiteboard').WhiteboardData, delay = 800) {
+  if (!isServerSyncEnabled()) return;
+  const existing = whiteboardTimers.get(board.projectId);
+  if (existing) clearTimeout(existing);
+  whiteboardTimers.set(
+    board.projectId,
+    setTimeout(() => {
+      whiteboardTimers.delete(board.projectId);
+      void persistWhiteboard(board).catch(() => undefined);
+    }, delay),
+  );
+}

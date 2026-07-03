@@ -14,6 +14,7 @@ import {
   isEditableFormat,
 } from '@/lib/doc-formats';
 import type { Doc } from '@/shared/types';
+import { ExcelSpreadsheetEditor } from '@/features/docs/components/excel-spreadsheet-editor';
 
 interface DocFileViewerProps {
   doc: Doc;
@@ -271,11 +272,19 @@ export function DocFileViewer({
       )}
 
       {doc.format === 'xlsx' && mode === 'edit' && (
-        <Textarea
-          value={content}
-          onChange={(e) => onContentChange(e.target.value)}
-          className="min-h-[calc(100vh-18rem)] font-mono text-sm"
-          placeholder="CSV-данные…"
+        <ExcelSpreadsheetEditor
+          csvContent={content}
+          onChange={onContentChange}
+          onSaveXlsx={(dataUrl) => {
+            onContentChange(content);
+            void import('@/stores/docs-store').then(({ useDocsStore }) => {
+              const store = useDocsStore.getState();
+              store.update(doc.id, { content });
+              useDocsStore.setState((s) => ({
+                docs: s.docs.map((d) => (d.id === doc.id ? { ...d, fileData: dataUrl } : d)),
+              }));
+            });
+          }}
         />
       )}
 

@@ -49,7 +49,7 @@ export function ProjectRoadmapPage() {
 
   if (!project) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="w-full max-w-4xl p-6">
         <Card>
           <CardHeader>
             <CardTitle>Проект не найден</CardTitle>

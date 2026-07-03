@@ -11,6 +11,13 @@ import { useRoadmapStore } from '@/stores/roadmap-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useTeamStore } from '@/stores/team-store';
+import { useNotificationsStore } from '@/stores/notifications-store';
+import { useAuditStore } from '@/stores/audit-store';
+import { useWhiteboardStore } from '@/stores/whiteboard-store';
+import { useIntegrationsStore } from '@/stores/integrations-store';
+import { useWhiteboardVersionsStore } from '@/stores/whiteboard-versions-store';
+import { useAutomationStore } from '@/stores/automation-store';
+import { useProjectTemplatesStore } from '@/stores/project-templates-store';
 
 const workspacePersistStores = [
   useProjectsStore,
@@ -21,9 +28,16 @@ const workspacePersistStores = [
   useApiStore,
   useRoadmapStore,
   useTeamStore,
+  useWhiteboardStore,
+  useNotificationsStore,
+  useAuditStore,
   useFigmaStore,
   useGitStore,
   useSettingsStore,
+  useAutomationStore,
+  useProjectTemplatesStore,
+  useIntegrationsStore,
+  useWhiteboardVersionsStore,
 ] as const;
 
 let hydratedScope: string | null = null;
@@ -41,6 +55,11 @@ export function resetWorkspaceStoresInMemory() {
   useApiStore.setState({ endpoints: [] });
   useRoadmapStore.setState({ columns: [], cards: [] });
   useTeamStore.setState({ members: [], invites: [], syncRooms: [] });
+  useWhiteboardStore.setState({ boards: [] });
+  useAutomationStore.setState({ rules: useAutomationStore.getState().rules });
+  useProjectTemplatesStore.setState({ custom: [] });
+  useNotificationsStore.setState({ items: [] });
+  useAuditStore.setState({ entries: [] });
   useFigmaStore.setState({ cache: {} });
   useGitStore.setState({ cache: {} });
   useSettingsStore.setState({
@@ -52,6 +71,7 @@ export function resetWorkspaceStoresInMemory() {
     aiUseFigma: true,
     openAiApiKey: '',
     autosaveDelayMs: 3000,
+    webhooks: [],
   });
 }
 

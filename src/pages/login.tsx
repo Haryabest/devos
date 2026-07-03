@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
 import { TitleBar } from '@/components/layout/title-bar';
 import { SavedAccountsPanel } from '@/components/auth/saved-accounts-panel';
 import { useAuthStore } from '@/stores/auth-store';
@@ -49,19 +49,37 @@ export function LoginPage() {
             <SavedAccountsPanel />
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="you@company.com" autoComplete="email" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Пароль</Label>
-                <Input id="password" name="password" type="password" autoComplete="current-password" required />
-              </div>
-              {loginMutation.error && (
-                <p className="text-sm text-destructive">
-                  {loginMutation.error instanceof Error ? loginMutation.error.message : 'Ошибка входа'}
-                </p>
-              )}
+              <FormField label="Email" htmlFor="email">
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  required
+                  aria-invalid={!!loginMutation.error}
+                />
+              </FormField>
+              <FormField
+                label="Пароль"
+                htmlFor="password"
+                error={
+                  loginMutation.error
+                    ? loginMutation.error instanceof Error
+                      ? loginMutation.error.message
+                      : 'Ошибка входа'
+                    : null
+                }
+              >
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  aria-invalid={!!loginMutation.error}
+                />
+              </FormField>
               <Button className="w-full" type="submit" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? 'Вход…' : 'Войти'}
               </Button>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useDebounce } from 'use-debounce';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { EmptyProjects } from '@/features/projects/components/empty-projects';
 import { GroupsBar } from '@/features/projects/components/groups-bar';
 import { GroupFormDialog } from '@/features/projects/components/group-form-dialog';
 import { PageContainer } from '@/components/layout/page-container';
+import { ProjectFromTemplateDialog } from '@/features/projects/components/project-from-template-dialog';
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -47,17 +49,19 @@ export function ProjectsPage() {
   );
 
   const [groupOpen, setGroupOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<(typeof groups)[0] | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [healthFilter, setHealthFilter] = useState<HealthFilter>('ALL');
   const [groupFilter, setGroupFilter] = useState<GroupFilter>('ALL');
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return projects.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q) && !p.description.toLowerCase().includes(q))
         return false;
@@ -68,7 +72,7 @@ export function ProjectsPage() {
       if (groupFilter !== 'ALL' && groupFilter !== 'NONE' && p.groupId !== groupFilter) return false;
       return true;
     });
-  }, [projects, search, statusFilter, typeFilter, healthFilter, groupFilter]);
+  }, [projects, debouncedSearch, statusFilter, typeFilter, healthFilter, groupFilter]);
 
   const groupedSections = useMemo(() => {
     if (groupFilter !== 'ALL') return null;
@@ -122,6 +126,10 @@ export function ProjectsPage() {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Button variant="outline" onClick={() => setTemplateOpen(true)} className="gap-2">
+            <Icons.LayoutTemplate className="h-4 w-4" />
+            Из шаблона
+          </Button>
           <Button variant="outline" onClick={() => setGroupOpen(true)} className="gap-2">
             <Icons.FolderPlus className="h-4 w-4" />
             Группа
@@ -256,6 +264,11 @@ export function ProjectsPage() {
           if (!o) setEditGroup(null);
         }}
         group={editGroup}
+      />
+      <ProjectFromTemplateDialog
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+        onCreated={(id) => navigate(`/projects/${id}`)}
       />
       <ConfirmDeleteDialog
         open={deleteConfirm !== null}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -36,6 +36,8 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
   const [clientId, setClientId] = useState<string | null>(null);
   const [startAt, setStartAt] = useState<string | null>(null);
   const [dueAt, setDueAt] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
     setName(project?.name ?? '');
@@ -49,7 +51,16 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    setNameError(null);
+    setDateError(null);
+    if (!name.trim()) {
+      setNameError('Укажите название проекта');
+      return;
+    }
+    if (startAt && dueAt && new Date(startAt) > new Date(dueAt)) {
+      setDateError('Дата начала не может быть позже даты окончания');
+      return;
+    }
     if (isEdit && project) {
       await updateApi.mutateAsync({
         id: project.id,
@@ -71,42 +82,41 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="name">Название</Label>
+    <form onSubmit={handleSubmit} className="max-w-lg space-y-5">
+      <FormField label="Название" htmlFor="name" error={nameError}>
         <Input
           id="name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (nameError) setNameError(null);
+          }}
           placeholder="Например, DevOS Web"
           autoFocus
           required
+          aria-invalid={!!nameError}
         />
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">Описание</Label>
+      <FormField label="Описание" htmlFor="description">
         <Input
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Коротко о проекте"
         />
-      </div>
+      </FormField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Начало</Label>
-          <DatePicker value={startAt} onChange={setStartAt} placeholder="Дата начала" />
-        </div>
-        <div className="space-y-2">
-          <Label>Окончание</Label>
-          <DatePicker value={dueAt} onChange={setDueAt} placeholder="Дата окончания" />
-        </div>
+        <FormField label="Начало">
+          <DatePicker value={startAt} onChange={setStartAt} placeholder="Дата начала" invalid={!!dateError} />
+        </FormField>
+        <FormField label="Окончание" error={dateError}>
+          <DatePicker value={dueAt} onChange={setDueAt} placeholder="Дата окончания" invalid={!!dateError} />
+        </FormField>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="type">Тип</Label>
+      <FormField label="Тип" htmlFor="type">
         <Select value={type} onValueChange={(v) => setType(v as ProjectType)}>
           <SelectTrigger id="type">
             <SelectValue placeholder="Выберите тип" />
@@ -119,11 +129,10 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FormField>
 
       {groups.length > 0 && (
-        <div className="space-y-2">
-          <Label htmlFor="group">Группа</Label>
+        <FormField label="Группа" htmlFor="group">
           <Select
             value={groupId ?? '__none'}
             onValueChange={(v) => setGroupId(v === '__none' ? null : v)}
@@ -140,12 +149,11 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
       )}
 
       {clients.length > 0 && (
-        <div className="space-y-2">
-          <Label htmlFor="client">Клиент</Label>
+        <FormField label="Клиент" htmlFor="client">
           <Select
             value={clientId ?? '__none'}
             onValueChange={(v) => setClientId(v === '__none' ? null : v)}
@@ -162,7 +170,7 @@ export function ProjectForm({ project, onCancel, onSaved }: ProjectFormProps) {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
       )}
 
       <p className="text-xs text-muted-foreground">

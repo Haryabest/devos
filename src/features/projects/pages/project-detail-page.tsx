@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BreadcrumbBack } from '@/components/layout/breadcrumb-back';
 import * as Icons from '@/components/ui/icons';
+import { useWhiteboardStore } from '@/stores/whiteboard-store';
 import { useProjectsStore } from '@/stores/projects-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
@@ -14,6 +15,7 @@ import { ProjectModulesSection } from '@/features/projects/components/project-mo
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { ProjectDeadlinesCard } from '@/features/projects/components/project-deadlines-card';
 import { ProjectGitDashboard } from '@/features/projects/components/project-git-dashboard';
+import { ProjectIntegrationsPanel } from '@/features/projects/components/project-integrations-panel';
 
 export function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -24,13 +26,14 @@ export function ProjectDetailPage() {
   const taskCount = useTasksStore((s) => s.tasks.filter((t) => t.projectId === projectId).length);
   const docCount = useDocsStore((s) => s.docs.filter((d) => d.projectId === projectId).length);
   const apiCount = useApiStore((s) => s.endpoints.filter((e) => e.projectId === projectId).length);
+  const noteCount = useWhiteboardStore((s) => s.getBoard(projectId!).notes.length);
 
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!project) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="w-full max-w-4xl p-6">
         <Card>
           <CardHeader>
             <CardTitle>Проект не найден</CardTitle>
@@ -47,6 +50,7 @@ export function ProjectDetailPage() {
   const modules = [
     { label: 'Задачи', count: taskCount, icon: Icons.Layers, to: `/projects/${project.id}/tasks` },
     { label: 'Roadmap', count: 0, icon: Icons.LayoutGrid, to: `/projects/${project.id}/roadmap` },
+    { label: 'Доска', count: noteCount, icon: Icons.StickyNote, to: `/projects/${project.id}/whiteboard` },
     { label: 'Документация', count: docCount, icon: Icons.FileText, to: `/projects/${project.id}/docs` },
     { label: 'API', count: apiCount, icon: Icons.Plug, to: `/projects/${project.id}/api` },
   ];
@@ -62,7 +66,7 @@ export function ProjectDetailPage() {
         onStatusChange={(status) => update(project.id, { status })}
       />
 
-      <ProjectModulesSection modules={modules} />
+      <ProjectModulesSection modules={modules} className="lg:grid-cols-5" />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ProjectDeadlinesCard project={project} />
@@ -78,6 +82,11 @@ export function ProjectDetailPage() {
       <ProjectFigmaCard
         project={project}
         onAddFigma={(url) => update(project.id, { links: { ...project.links, figma: url } })}
+      />
+
+      <ProjectIntegrationsPanel
+        project={project}
+        onUpdateLinks={(links) => update(project.id, { links })}
       />
 
       <ProjectShareDialog project={project} open={shareOpen} onOpenChange={setShareOpen} />

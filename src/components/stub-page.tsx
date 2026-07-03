@@ -15,7 +15,7 @@ interface Stub {
 
 export function StubPage({ title, description }: Stub) {
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="w-full max-w-4xl p-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

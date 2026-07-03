@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { mapApiProject, type ApiProject, type ApiWorkspace } from '@/lib/backend-sync';
+import { useWhiteboardStore } from '@/stores/whiteboard-store';
 import {
   fetchWorkspaceClients,
   fetchWorkspaceDocs,
+  fetchWorkspaceWhiteboards,
 } from '@/lib/server-persist';
 import { readScopedItem, writeScopedItem } from '@/lib/storage-scope';
 import { useAuthStore } from '@/stores/auth-store';
@@ -40,6 +42,7 @@ export function useBackendBootstrap() {
   const setProjects = useProjectsStore((s) => s.setFromServer);
   const setDocs = useDocsStore((s) => s.setFromServer);
   const setClients = useClientsStore((s) => s.setFromServer);
+  const setWhiteboards = useWhiteboardStore((s) => s.setFromServer);
 
   const enabled = !isGuest && !!accessToken;
 
@@ -79,6 +82,13 @@ export function useBackendBootstrap() {
     staleTime: 30_000,
   });
 
+  const whiteboardsQuery = useQuery({
+    queryKey: ['whiteboards', userId, activeWorkspaceId],
+    queryFn: () => fetchWorkspaceWhiteboards(activeWorkspaceId!),
+    enabled: enabled && !!activeWorkspaceId,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
     if (!projectsQuery.data) return;
     const links = loadLocalLinks();
@@ -97,13 +107,19 @@ export function useBackendBootstrap() {
     setClients(clientsQuery.data);
   }, [clientsQuery.data, setClients]);
 
+  useEffect(() => {
+    if (!whiteboardsQuery.data) return;
+    setWhiteboards(whiteboardsQuery.data);
+  }, [whiteboardsQuery.data, setWhiteboards]);
+
   return {
     isBootstrapping:
       enabled &&
       (workspacesQuery.isLoading ||
         (!!activeWorkspaceId && projectsQuery.isLoading) ||
         (!!activeWorkspaceId && docsQuery.isLoading) ||
-        (!!activeWorkspaceId && clientsQuery.isLoading)),
+        (!!activeWorkspaceId && clientsQuery.isLoading) ||
+        (!!activeWorkspaceId && whiteboardsQuery.isLoading)),
     workspaceId: activeWorkspaceId,
     refetchProjects: projectsQuery.refetch,
   };

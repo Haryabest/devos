@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import * as Icons from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
 
 type ProjectModule = {
   label: string;
@@ -17,13 +18,14 @@ type ProjectModule = {
 
 type ProjectModulesSectionProps = {
   modules: ProjectModule[];
+  className?: string;
 };
 
-export function ProjectModulesSection({ modules }: ProjectModulesSectionProps) {
+export function ProjectModulesSection({ modules, className }: ProjectModulesSectionProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4', className)}>
       {modules.map((m) => (
         <Card
           key={m.label}

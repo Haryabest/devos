@@ -12,6 +12,7 @@ export interface FigmaCacheEntry {
 interface FigmaState {
   cache: Record<string, FigmaCacheEntry>;
   ensureCached: (url: string) => Promise<FigmaCacheEntry | null>;
+  refresh: (url: string) => Promise<FigmaCacheEntry | null>;
 }
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -55,6 +56,17 @@ export const useFigmaStore = create<FigmaState>()(
           if (existing) return existing;
           return null;
         }
+      },
+
+      refresh: async (url) => {
+        const trimmed = url.trim();
+        if (!trimmed) return null;
+        set((s) => {
+          const next = { ...s.cache };
+          delete next[trimmed];
+          return { cache: next };
+        });
+        return get().ensureCached(trimmed);
       },
     }),
     {

@@ -7,7 +7,7 @@ export function ProjectNewPage() {
   const navigate = useNavigate();
 
   return (
-    <PageContainer variant="prose">
+    <PageContainer>
       <BreadcrumbBack label="Проекты" to="/projects" className="mb-4" />
       <header className="mb-8 space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Новый проект</h1>
