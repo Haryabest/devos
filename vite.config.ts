@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
+import { collabWsPlugin } from './vite.collab-ws';
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -9,7 +10,7 @@ const host = process.env.TAURI_DEV_HOST;
  * Прокси /api и /health на backend NestJS (по умолчанию :3333).
  */
 export default defineConfig(() => ({
-  plugins: [react()],
+  plugins: [react(), collabWsPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -37,6 +38,8 @@ export default defineConfig(() => ({
         target: process.env.VITE_API_URL ?? 'http://localhost:3333',
         changeOrigin: true,
       },
+      // /ws/collab обрабатывается collabWsPlugin() на dev-сервере Vite.
+      // В production — NestJS SyncModule на backend.
     },
   },
   build: {

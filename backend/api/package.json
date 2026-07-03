@@ -25,7 +25,9 @@
     "@nestjs/core": "^10.4.4",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/platform-fastify": "^10.4.4",
+    "@nestjs/platform-ws": "^10.4.4",
     "@nestjs/swagger": "^7.4.2",
+    "@nestjs/websockets": "^10.4.4",
     "argon2": "^0.41.1",
     "bullmq": "^5.13.0",
     "class-transformer": "^0.5.1",
@@ -38,12 +40,14 @@
     "pino-pretty": "^11.2.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@devos/config": "workspace:*",
     "@nestjs/testing": "^10.4.4",
     "@types/node": "^22.5.5",
+    "@types/ws": "^8.5.13",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2"
   }

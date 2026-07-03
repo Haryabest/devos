@@ -29,7 +29,7 @@ export function SentInvitesCard({
             <div className="min-w-0 flex-1">
               <p className="font-medium">{inv.projectName}</p>
               <p className="text-xs text-muted-foreground">
-                {inv.email} · {ROLE_LABEL[inv.role]} · {inv.status}
+                {inv.email === '*' ? 'Открытое' : inv.email} · {ROLE_LABEL[inv.role]} · {inv.status}
               </p>
             </div>
             <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{inv.token}</code>
@@ -39,7 +39,7 @@ export function SentInvitesCard({
                   size="sm"
                   variant="outline"
                   className="h-7"
-                  onClick={() => onCopyLink(getInviteLink(inv.token))}
+                  onClick={() => onCopyLink(getInviteLink(inv))}
                 >
                   <Icons.Copy className="h-3 w-3" />
                 </Button>

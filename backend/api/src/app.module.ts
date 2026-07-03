@@ -16,6 +16,7 @@ import { FigmaModule } from './modules/figma/figma.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { SyncModule } from './modules/sync/sync.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AiModule,
     SearchModule,
     NotificationsModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

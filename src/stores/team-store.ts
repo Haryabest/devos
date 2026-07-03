@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createScopedPersistStorage } from '@/lib/scoped-storage';
-import { readScopedItem, writeScopedItem } from '@/lib/storage-scope';
+import {
+  findGlobalInviteByToken,
+  readGlobalInvitePool,
+  upsertGlobalInvite,
+} from '@/lib/global-invite-pool';
+import {
+  parseJoinInput,
+  type AcceptInviteResult,
+  type ParsedJoinInput,
+} from '@/lib/invite-link';
 import type { ProjectMember, Role, TeamInvite } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -21,10 +30,10 @@ interface TeamState {
   inviteToProject: (input: {
     projectId: string;
     projectName: string;
-    email: string;
+    email?: string;
     role: Role;
   }) => TeamInvite;
-  acceptInvite: (token: string) => TeamInvite | null;
+  acceptInvite: (input: string | ParsedJoinInput) => AcceptInviteResult;
   declineInvite: (token: string) => void;
   removeMember: (memberId: string) => void;
   removeInvite: (inviteId: string) => void;
@@ -33,6 +42,9 @@ interface TeamState {
   leaveSyncRoom: (projectId: string) => void;
   getProjectMembers: (projectId: string) => ProjectMember[];
   getPendingInvites: () => TeamInvite[];
+  mergePendingInvites: (fresh: TeamInvite[]) => void;
+  getJoinedProjectIds: () => string[];
+  isJoinedProject: (projectId: string) => boolean;
 }
 
 function uid(): string {
@@ -49,33 +61,15 @@ function markSaved() {
   useSaveStore.getState().markSaved();
 }
 
-const INVITE_POOL_KEY = 'devos:invite-pool';
-
-function pushToInvitePool(invite: TeamInvite) {
-  try {
-    const raw = readScopedItem(INVITE_POOL_KEY);
-    const pool: TeamInvite[] = raw ? JSON.parse(raw) : [];
-    pool.unshift(invite);
-    writeScopedItem(INVITE_POOL_KEY, JSON.stringify(pool.slice(0, 200)));
-  } catch {
-    /* ignore */
-  }
-}
-
 export function pullInvitesFromPool(): TeamInvite[] {
-  try {
-    const raw = readScopedItem(INVITE_POOL_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return readGlobalInvitePool();
 }
 
 export function findInviteByToken(token: string): TeamInvite | undefined {
   const upper = token.toUpperCase();
   const local = useTeamStore.getState().invites.find((i) => i.token === upper);
   if (local) return local;
-  return pullInvitesFromPool().find((i) => i.token === upper && i.status === 'PENDING');
+  return findGlobalInviteByToken(upper);
 }
 
 function buildProjectBundle(projectId: string): ProjectInviteBundle | undefined {
@@ -107,6 +101,23 @@ function mergeProjectBundle(bundle: ProjectInviteBundle) {
   }));
 }
 
+function resolveJoinInput(input: string | ParsedJoinInput): ParsedJoinInput | null {
+  if (typeof input === 'string') return parseJoinInput(input);
+  return input;
+}
+
+function findPendingInvite(token: string, payload: TeamInvite | null): TeamInvite | undefined {
+  const upper = token.toUpperCase();
+  const local = useTeamStore.getState().invites.find((i) => i.token === upper && i.status === 'PENDING');
+  if (local) return local;
+
+  const global = findGlobalInviteByToken(upper);
+  if (global) return global;
+
+  if (payload?.token === upper && payload.status === 'PENDING') return payload;
+  return undefined;
+}
+
 export const useTeamStore = create<TeamState>()(
   persist(
     (set, get) => ({
@@ -121,7 +132,7 @@ export const useTeamStore = create<TeamState>()(
           id: uid(),
           projectId: input.projectId,
           projectName: input.projectName,
-          email: input.email.trim().toLowerCase(),
+          email: input.email?.trim().toLowerCase() || '*',
           role: input.role,
           token: inviteToken(),
           status: 'PENDING',
@@ -132,33 +143,33 @@ export const useTeamStore = create<TeamState>()(
           bundle,
         };
         set((s) => ({ invites: [invite, ...s.invites] }));
-        pushToInvitePool(invite);
+        upsertGlobalInvite(invite);
         get().joinSyncRoom(input.projectId);
         markSaved();
         return invite;
       },
 
-      acceptInvite: (token) => {
+      acceptInvite: (input) => {
         const user = useAuthStore.getState().user;
-        if (!user) return null;
-        const upper = token.toUpperCase();
-        let invite =
-          get().invites.find((i) => i.token === upper && i.status === 'PENDING') ??
-          pullInvitesFromPool().find((i) => i.token === upper && i.status === 'PENDING');
+        if (!user) return { ok: false, reason: 'auth' };
 
-        if (!invite) return null;
+        const parsed = resolveJoinInput(input);
+        if (!parsed) return { ok: false, reason: 'invalid' };
 
-        // Добавляем в локальный стор, если пришло из пула.
-        if (!get().invites.some((i) => i.id === invite!.id)) {
-          set((s) => ({ invites: [invite!, ...s.invites] }));
+        const invite = findPendingInvite(parsed.token, parsed.payload);
+        if (!invite) return { ok: false, reason: 'not_found' };
+
+        if (!get().invites.some((i) => i.id === invite.id)) {
+          set((s) => ({ invites: [invite, ...s.invites] }));
         }
+
         if (new Date(invite.expiresAt) < new Date()) {
+          const expired = { ...invite, status: 'EXPIRED' as const };
           set((s) => ({
-            invites: s.invites.map((i) =>
-              i.id === invite.id ? { ...i, status: 'EXPIRED' as const } : i,
-            ),
+            invites: s.invites.map((i) => (i.id === invite.id ? expired : i)),
           }));
-          return null;
+          upsertGlobalInvite(expired);
+          return { ok: false, reason: 'expired' };
         }
 
         if (invite.bundle) mergeProjectBundle(invite.bundle);
@@ -173,10 +184,10 @@ export const useTeamStore = create<TeamState>()(
           joinedAt: new Date().toISOString(),
         };
 
+        const accepted = { ...invite, status: 'ACCEPTED' as const };
+
         set((s) => ({
-          invites: s.invites.map((i) =>
-            i.id === invite.id ? { ...i, status: 'ACCEPTED' as const } : i,
-          ),
+          invites: s.invites.map((i) => (i.id === invite.id ? accepted : i)),
           members: [
             ...s.members.filter(
               (m) => !(m.projectId === invite.projectId && m.userId === user.id),
@@ -187,16 +198,20 @@ export const useTeamStore = create<TeamState>()(
             ? s.syncRooms
             : [...s.syncRooms, invite.projectId],
         }));
+        upsertGlobalInvite(accepted);
         markSaved();
-        return invite;
+        return { ok: true, invite: accepted };
       },
 
       declineInvite: (token) => {
+        const upper = token.toUpperCase();
         set((s) => ({
           invites: s.invites.map((i) =>
-            i.token === token.toUpperCase() ? { ...i, status: 'DECLINED' as const } : i,
+            i.token === upper ? { ...i, status: 'DECLINED' as const } : i,
           ),
         }));
+        const declined = get().invites.find((i) => i.token === upper);
+        if (declined) upsertGlobalInvite({ ...declined, status: 'DECLINED' });
         markSaved();
       },
 
@@ -233,9 +248,29 @@ export const useTeamStore = create<TeamState>()(
         const email = useAuthStore.getState().user?.email?.toLowerCase();
         if (!email) return [];
         return get().invites.filter(
-          (i) => i.status === 'PENDING' && i.email === email && new Date(i.expiresAt) > new Date(),
+          (i) =>
+            i.status === 'PENDING' &&
+            (i.email === '*' || i.email === email) &&
+            new Date(i.expiresAt) > new Date(),
         );
       },
+
+      mergePendingInvites: (fresh) => {
+        const existing = new Set(get().invites.map((i) => i.id));
+        const toAdd = fresh.filter((i) => !existing.has(i.id) && i.status === 'PENDING');
+        if (toAdd.length === 0) return;
+        set((s) => ({ invites: [...toAdd, ...s.invites] }));
+      },
+
+      getJoinedProjectIds: () => {
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) return [];
+        return get()
+          .members.filter((m) => m.userId === userId)
+          .map((m) => m.projectId);
+      },
+
+      isJoinedProject: (projectId) => get().getJoinedProjectIds().includes(projectId),
     }),
     {
       name: 'devos:team',

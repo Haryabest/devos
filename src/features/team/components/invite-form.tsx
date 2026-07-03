@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -27,31 +26,30 @@ export function InviteForm({
 }: {
   projects: Project[];
   onNavigateToProjects: () => void;
-  onInvite: (data: { projectId: string; email: string; role: Role }) => string | null;
+  onInvite: (data: { projectId: string; role: Role }) => string | null;
 }) {
   const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
-  const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('DEVELOPER');
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [lastCode, setLastCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
 
-  async function copyLink(link: string) {
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function copy(text: string, kind: 'link' | 'code') {
+    await navigator.clipboard.writeText(text);
+    setCopied(kind);
+    setTimeout(() => setCopied(null), 2000);
   }
 
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     const project = projects.find((p) => p.id === projectId);
-    if (!project || !email.trim()) return;
-    const link = onInvite({
-      projectId: project.id,
-      email: email.trim(),
-      role,
-    });
-    if (link) setLastInviteLink(link);
-    setEmail('');
+    if (!project) return;
+    const link = onInvite({ projectId: project.id, role });
+    if (link) {
+      setLastInviteLink(link);
+      const code = new URL(link).searchParams.get('join');
+      setLastCode(code);
+    }
   }
 
   return (
@@ -62,7 +60,7 @@ export function InviteForm({
           Пригласить в проект
         </CardTitle>
         <CardDescription>
-          Любая роль: админ, менеджер, разработчик, наблюдатель, гость.
+          Создайте код — отправьте коллеге ссылку целиком (почта не нужна).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -75,7 +73,7 @@ export function InviteForm({
           </p>
         ) : (
           <form onSubmit={handleInvite} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Проект</Label>
                 <Select value={projectId} onValueChange={setProjectId}>
@@ -90,16 +88,6 @@ export function InviteForm({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="colleague@company.com"
-                  required
-                />
               </div>
               <div className="space-y-2">
                 <Label>Роль</Label>
@@ -118,17 +106,39 @@ export function InviteForm({
               </div>
             </div>
             <Button type="submit" className="gap-2">
-              <Icons.Send className="h-4 w-4" />
-              Отправить приглашение
+              <Icons.Link2 className="h-4 w-4" />
+              Создать код приглашения
             </Button>
-            {lastInviteLink && (
-              <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/30 px-3 py-2 text-xs">
-                <span className="text-muted-foreground">Ссылка:</span>
-                <code className="flex-1 truncate font-mono">{lastInviteLink}</code>
-                <Button type="button" size="sm" variant="outline" className="h-7 gap-1" onClick={() => copyLink(lastInviteLink)}>
-                  <Icons.Copy className="h-3 w-3" />
-                  {copied ? 'Скопировано' : 'Копировать'}
-                </Button>
+            {lastInviteLink && lastCode && (
+              <div className="space-y-2 rounded-md bg-muted/30 px-3 py-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground">Код:</span>
+                  <code className="rounded bg-muted px-2 py-0.5 font-mono text-sm">{lastCode}</code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1"
+                    onClick={() => copy(lastCode, 'code')}
+                  >
+                    <Icons.Copy className="h-3 w-3" />
+                    {copied === 'code' ? 'Скопировано' : 'Код'}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground">Ссылка:</span>
+                  <code className="min-w-0 flex-1 truncate font-mono">{lastInviteLink}</code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1"
+                    onClick={() => copy(lastInviteLink, 'link')}
+                  >
+                    <Icons.Copy className="h-3 w-3" />
+                    {copied === 'link' ? 'Скопировано' : 'Ссылку'}
+                  </Button>
+                </div>
               </div>
             )}
           </form>

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmDeleteDialog, type DeleteConfirmState } from '@/components/ui/confirm-delete-dialog';
-import { getInviteLink, subscribeSyncStatus } from '@/lib/sync-engine';
+import { getInviteLink, requestCollaborationSync, subscribeSyncStatus } from '@/lib/sync-engine';
+import { syncGlobalInvitesIntoTeamStore } from '@/lib/global-invite-pool';
+import { ACCEPT_INVITE_ERRORS, parseJoinSearchParams } from '@/lib/invite-link';
 import { useProjectsStore } from '@/stores/projects-store';
-import { pullInvitesFromPool, useTeamStore } from '@/stores/team-store';
+import { useTeamStore } from '@/stores/team-store';
 import { useAuthStore } from '@/stores/auth-store';
 import type { ProjectMember, Role, TeamInvite } from '@/shared/types';
 import { SyncStatusBadge } from '@/features/team/components/sync-status-badge';
@@ -29,32 +31,48 @@ export function TeamPage() {
   const removeInvite = useTeamStore((s) => s.removeInvite);
   const updateMemberRole = useTeamStore((s) => s.updateMemberRole);
   const joinSyncRoom = useTeamStore((s) => s.joinSyncRoom);
+  const mergePendingInvites = useTeamStore((s) => s.mergePendingInvites);
 
   const [syncLive, setSyncLive] = useState(false);
   const [joinCode, setJoinCode] = useState(params.get('join') ?? '');
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const autoJoinAttempted = useRef(false);
 
   useEffect(() => subscribeSyncStatus(setSyncLive), []);
 
-  useEffect(() => {
-    const pool = pullInvitesFromPool();
-    const existing = new Set(useTeamStore.getState().invites.map((i) => i.id));
-    const fresh = pool.filter((i) => !existing.has(i.id));
-    if (fresh.length > 0) {
-      useTeamStore.setState((s) => ({ invites: [...fresh, ...s.invites] }));
-    }
-  }, []);
+  useEffect(() => syncGlobalInvitesIntoTeamStore(mergePendingInvites), [mergePendingInvites]);
 
   const joinParam = params.get('join');
   useEffect(() => {
     if (joinParam) setJoinCode(joinParam);
   }, [joinParam]);
 
+  useEffect(() => {
+    if (!user || autoJoinAttempted.current) return;
+    const parsed = parseJoinSearchParams(params);
+    if (!parsed) return;
+    autoJoinAttempted.current = true;
+    const result = acceptInvite(parsed);
+    if (result.ok) {
+      joinSyncRoom(result.invite.projectId);
+      requestCollaborationSync();
+      setJoinCode('');
+      params.delete('join');
+      params.delete('p');
+      setParams(params, { replace: true });
+      navigate(`/projects/${result.invite.projectId}`);
+    }
+  }, [user?.id, params, acceptInvite, joinSyncRoom, navigate, setParams]);
+
   const myPending = useMemo(() => {
     const mail = user?.email?.toLowerCase();
     if (!mail) return [];
     return invites.filter(
-      (i) => i.status === 'PENDING' && i.email === mail && new Date(i.expiresAt) > new Date(),
+      (i) =>
+        i.status === 'PENDING' &&
+        (i.email === '*' || i.email === mail) &&
+        new Date(i.expiresAt) > new Date(),
     );
   }, [invites, user?.email]);
 
@@ -63,28 +81,33 @@ export function TeamPage() {
     [invites, user?.id],
   );
 
-  function handleInvite(data: { projectId: string; email: string; role: Role }) {
+  function handleInvite(data: { projectId: string; role: Role }) {
     const project = projects.find((p) => p.id === data.projectId);
     if (!project) return null;
     const inv = inviteToProject({
       projectId: project.id,
       projectName: project.name,
-      email: data.email,
       role: data.role,
     });
     joinSyncRoom(project.id);
-    return getInviteLink(inv.token);
+    return getInviteLink(inv);
   }
 
-  function handleAccept(token: string) {
-    const inv = acceptInvite(token);
-    if (inv) {
-      joinSyncRoom(inv.projectId);
+  function handleAccept(input: string | ReturnType<typeof parseJoinSearchParams>, silent = false) {
+    if (!input) return;
+    setJoinError(null);
+    const result = acceptInvite(input);
+    if (result.ok) {
+      joinSyncRoom(result.invite.projectId);
+      requestCollaborationSync();
       setJoinCode('');
       params.delete('join');
+      params.delete('p');
       setParams(params, { replace: true });
-      navigate(`/projects/${inv.projectId}`);
+      navigate(`/projects/${result.invite.projectId}`);
+      return;
     }
+    if (!silent) setJoinError(ACCEPT_INVITE_ERRORS[result.reason]);
   }
 
   async function copyLink(link: string) {
@@ -102,7 +125,7 @@ export function TeamPage() {
   function confirmRevokeInvite(invite: TeamInvite) {
     setDeleteConfirm({
       title: 'Отозвать приглашение?',
-      description: `Приглашение для ${invite.email} будет удалено.`,
+      description: `Приглашение ${invite.token} будет удалено.`,
       onConfirm: () => removeInvite(invite.id),
     });
   }
@@ -113,18 +136,25 @@ export function TeamPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Команда</h1>
           <p className="text-sm text-muted-foreground">
-            Приглашайте в проекты с любой ролью. Изменения синхронизируются в реальном времени.
+            Создайте код и отправьте ссылку — коллега откроет проект без почты. Live sync работает
+            между вкладками одного приложения.
           </p>
         </div>
         <SyncStatusBadge syncLive={syncLive} />
       </header>
+
+      {joinError && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {joinError}
+        </div>
+      )}
 
       <PendingInvitesCard
         invites={myPending}
         joinCode={joinCode}
         onJoinCodeChange={setJoinCode}
         onDecline={declineInvite}
-        onAccept={handleAccept}
+        onAccept={(raw) => handleAccept(raw)}
       />
 
       <InviteForm
@@ -151,7 +181,8 @@ export function TeamPage() {
       <JoinCodeCard
         joinCode={joinCode}
         onJoinCodeChange={setJoinCode}
-        onAccept={handleAccept}
+        onAccept={(raw) => handleAccept(raw)}
+        error={joinError}
       />
 
       <ConfirmDeleteDialog

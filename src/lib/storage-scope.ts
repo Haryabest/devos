@@ -11,7 +11,6 @@ export const WORKSPACE_STORAGE_KEYS = [
   'devos:settings',
   'devos:team',
   'devos:project-links',
-  'devos:invite-pool',
 ] as const;
 
 type ScopeHandler = (mode: 'switch' | 'logout') => void | Promise<void>;

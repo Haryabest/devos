@@ -17,6 +17,8 @@ import { useGroupsStore } from '@/stores/groups-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
 import { useApiStore } from '@/stores/api-store';
+import { useTeamStore } from '@/stores/team-store';
+import { useAuthStore } from '@/stores/auth-store';
 import type { Project } from '@/shared/types';
 import type { GroupFilter, HealthFilter, StatusFilter, TypeFilter } from '@/features/projects/constants';
 import { FilterSelect } from '@/features/projects/components/filter-select';
@@ -36,6 +38,13 @@ export function ProjectsPage() {
   const tasks = useTasksStore((s) => s.tasks);
   const docs = useDocsStore((s) => s.docs);
   const endpoints = useApiStore((s) => s.endpoints);
+  const members = useTeamStore((s) => s.members);
+  const userId = useAuthStore((s) => s.user?.id);
+
+  const connectedProjectIds = useMemo(
+    () => new Set(members.filter((m) => m.userId === userId).map((m) => m.projectId)),
+    [members, userId],
+  );
 
   const [groupOpen, setGroupOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<(typeof groups)[0] | null>(null);
@@ -220,6 +229,7 @@ export function ProjectsPage() {
                 docs={docs}
                 endpoints={endpoints}
                 groups={groups}
+                connectedProjectIds={connectedProjectIds}
                 onOpen={(id) => navigate(`/projects/${id}`)}
                 onDelete={handleDeleteProject}
               />
@@ -233,6 +243,7 @@ export function ProjectsPage() {
           docs={docs}
           endpoints={endpoints}
           groups={groups}
+          connectedProjectIds={connectedProjectIds}
           onOpen={(id) => navigate(`/projects/${id}`)}
           onDelete={handleDeleteProject}
         />

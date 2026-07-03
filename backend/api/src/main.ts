@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
@@ -36,6 +37,7 @@ async function bootstrap() {
     }),
   );
   app.enableShutdownHooks();
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   try {
     const swagger = new DocumentBuilder()

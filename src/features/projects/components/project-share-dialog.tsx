@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -39,10 +38,10 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
   const removeInvite = useTeamStore((s) => s.removeInvite);
   const updateMemberRole = useTeamStore((s) => s.updateMemberRole);
 
-  const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('DEVELOPER');
   const [lastLink, setLastLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [lastCode, setLastCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ type: 'member' | 'invite'; id: string; label: string } | null>(null);
 
   const projectMembers = useMemo(
@@ -61,24 +60,22 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
     [invites, project.id],
   );
 
-  function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim()) return;
+  function handleCreateInvite() {
     const inv = inviteToProject({
       projectId: project.id,
       projectName: project.name,
-      email: email.trim(),
       role,
     });
     joinSyncRoom(project.id);
-    setLastLink(getInviteLink(inv.token));
-    setEmail('');
+    const link = getInviteLink(inv);
+    setLastLink(link);
+    setLastCode(inv.token);
   }
 
-  async function copyLink(link: string) {
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function copy(text: string, kind: 'link' | 'code') {
+    await navigator.clipboard.writeText(text);
+    setCopied(kind);
+    setTimeout(() => setCopied(null), 2000);
   }
 
   return (
@@ -91,24 +88,13 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
               Поделиться проектом
             </DialogTitle>
             <DialogDescription>
-              {project.name} — пригласите по email. Изменения синхронизируются в реальном времени.
+              {project.name} — создайте код и отправьте ссылку. Почта не нужна.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleInvite} className="space-y-3">
+          <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="share-email">Email</Label>
-              <Input
-                id="share-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="colleague@company.com"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Роль</Label>
+              <Label>Роль для нового участника</Label>
               <Select value={role} onValueChange={(v) => setRole(v as Role)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -122,25 +108,44 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" className="w-full gap-2" disabled={!email.trim()}>
-              <Icons.Send className="h-4 w-4" />
-              Отправить приглашение
+            <Button type="button" className="w-full gap-2" onClick={handleCreateInvite}>
+              <Icons.Link2 className="h-4 w-4" />
+              Создать код приглашения
             </Button>
-          </form>
+          </div>
 
-          {lastLink && (
-            <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
-              <code className="min-w-0 flex-1 truncate font-mono">{lastLink}</code>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 shrink-0 gap-1"
-                onClick={() => copyLink(lastLink)}
-              >
-                <Icons.Copy className="h-3 w-3" />
-                {copied ? 'OK' : 'Копировать'}
-              </Button>
+          {lastLink && lastCode && (
+            <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 px-3 py-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Код:</span>
+                <code className="rounded bg-muted px-2 py-0.5 font-mono">{lastCode}</code>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 gap-1"
+                  onClick={() => copy(lastCode, 'code')}
+                >
+                  <Icons.Copy className="h-3 w-3" />
+                  {copied === 'code' ? 'OK' : 'Код'}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate font-mono">{lastLink}</code>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 gap-1"
+                  onClick={() => copy(lastLink, 'link')}
+                >
+                  <Icons.Copy className="h-3 w-3" />
+                  {copied === 'link' ? 'OK' : 'Ссылку'}
+                </Button>
+              </div>
+              <p className="text-muted-foreground">
+                Отправьте ссылку целиком — на другом устройстве одного кода недостаточно.
+              </p>
             </div>
           )}
 
@@ -196,14 +201,13 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
 
           {pendingInvites.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Ожидают принятия</p>
+              <p className="text-xs font-medium text-muted-foreground">Активные коды</p>
               {pendingInvites.map((inv) => (
                 <div
                   key={inv.id}
                   className="flex items-center gap-2 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{inv.email}</p>
                     <p className="text-muted-foreground">{ROLE_LABEL[inv.role]}</p>
                   </div>
                   <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{inv.token}</code>
@@ -211,7 +215,7 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => copyLink(getInviteLink(inv.token))}
+                    onClick={() => copy(getInviteLink(inv), 'link')}
                   >
                     <Icons.Copy className="h-3 w-3" />
                   </Button>
@@ -220,7 +224,7 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
                     size="icon"
                     className="h-7 w-7"
                     onClick={() =>
-                      setRemoveTarget({ type: 'invite', id: inv.id, label: inv.email })
+                      setRemoveTarget({ type: 'invite', id: inv.id, label: inv.token })
                     }
                   >
                     <Icons.Trash2 className="h-3.5 w-3.5" />
@@ -239,7 +243,7 @@ export function ProjectShareDialog({ project, open, onOpenChange }: ProjectShare
         description={
           removeTarget?.type === 'member'
             ? `${removeTarget.label} потеряет доступ к проекту.`
-            : `Приглашение для ${removeTarget?.label} будет отозвано.`
+            : `Код ${removeTarget?.label} перестанет работать.`
         }
         onConfirm={() => {
           if (!removeTarget) return;

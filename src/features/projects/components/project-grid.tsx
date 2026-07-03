@@ -14,6 +14,7 @@ import {
   STATUS_COLOR,
   STATUS_LABEL,
 } from '@/stores/projects-store';
+import { cn } from '@/lib/utils';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useTasksStore } from '@/stores/tasks-store';
 import { useDocsStore } from '@/stores/docs-store';
@@ -27,6 +28,7 @@ export function ProjectGrid({
   docs,
   endpoints,
   groups,
+  connectedProjectIds,
   onOpen,
   onDelete,
   deleteAction = 'delete',
@@ -36,6 +38,8 @@ export function ProjectGrid({
   docs: ReturnType<typeof useDocsStore.getState>['docs'];
   endpoints: ReturnType<typeof useApiStore.getState>['endpoints'];
   groups: ReturnType<typeof useGroupsStore.getState>['groups'];
+  /** Проекты, к которым пользователь подключился по приглашению */
+  connectedProjectIds?: Set<string>;
   onOpen: (id: string) => void;
   onDelete?: (p: Project) => void;
   /** detach — кнопка отвязывает проект вместо удаления */
@@ -45,6 +49,7 @@ export function ProjectGrid({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {projects.map((p) => {
         const group = groups.find((g) => g.id === p.groupId);
+        const isConnected = connectedProjectIds?.has(p.id) ?? false;
         const taskCount = tasks.filter((t) => t.projectId === p.id && t.parentId === null).length;
         const docCount = docs.filter((d) => d.projectId === p.id).length;
         const apiCount = endpoints.filter((e) => e.projectId === p.id).length;
@@ -52,7 +57,10 @@ export function ProjectGrid({
           <Card
             key={p.id}
             onClick={() => onOpen(p.id)}
-            className="group cursor-pointer transition-colors hover:border-primary/50"
+            className={cn(
+              'group cursor-pointer transition-colors hover:border-primary/50',
+              isConnected && 'border-emerald-500/40 bg-emerald-500/[0.03]',
+            )}
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
@@ -90,6 +98,15 @@ export function ProjectGrid({
             <CardContent className="space-y-2.5 text-xs text-muted-foreground">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{p.type}</Badge>
+                {isConnected && (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-emerald-500/50 bg-emerald-500/10 text-[10px] text-emerald-700 dark:text-emerald-400"
+                  >
+                    <Icons.Users className="h-3 w-3" />
+                    Подключён
+                  </Badge>
+                )}
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR[p.status] }} />
                   {STATUS_LABEL[p.status]}
