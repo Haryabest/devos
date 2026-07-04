@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
-import { ClientsService, type UpsertClientDto } from './clients.service.js';
+import { ClientsService } from './clients.service.js';
+import { CreateClientDto, UpdateClientDto } from './clients.dto.js';
 import { JwtGuard } from '../auth/jwt.guard.js';
 
 @ApiTags('clients')
@@ -41,7 +42,7 @@ export class ClientsController {
   @ApiQuery({ name: 'workspaceId', required: true })
   async create(
     @Query('workspaceId') workspaceId: string,
-    @Body() dto: UpsertClientDto,
+    @Body() dto: CreateClientDto,
     @Req() req: FastifyRequest & { userId?: string },
   ) {
     const userId = await this.uid(req);
@@ -51,7 +52,7 @@ export class ClientsController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<UpsertClientDto>,
+    @Body() dto: UpdateClientDto,
     @Req() req: FastifyRequest & { userId?: string },
   ) {
     const userId = await this.uid(req);

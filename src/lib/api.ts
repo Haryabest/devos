@@ -1,9 +1,8 @@
-import type { ApiError } from '@/shared/types';
+import type { ApiError, AuthResponse } from '@/shared/types';
 import { useAuthStore } from '@/stores/auth-store';
 
 /**
- * Тонкий fetch-wrapper: base URL, Bearer, JSON, кидает ApiRequestError.
- * Refresh токенов — отдельным mutation'ом (не автомагически).
+ * Тонкий fetch-wrapper: base URL, Bearer, JSON, auto-refresh при 401.
  */
 export const API_BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
 
@@ -12,6 +11,43 @@ export class ApiRequestError extends Error {
     super(error.message);
     this.name = 'ApiRequestError';
   }
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshTokens(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const { refreshToken, setSession, clear } = useAuthStore.getState();
+    if (!refreshToken) {
+      clear();
+      return false;
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) {
+        clear();
+        return false;
+      }
+      const data = (await res.json()) as AuthResponse;
+      setSession(data);
+      return true;
+    } catch {
+      clear();
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 export async function api<T>(
@@ -28,18 +64,47 @@ export async function api<T>(
     if (token) finalHeaders.set('authorization', `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...rest, headers: finalHeaders });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...rest, headers: finalHeaders });
+  } catch {
+    throw new ApiRequestError({
+      statusCode: 0,
+      code: 'NETWORK_ERROR',
+      message: 'Не удалось подключиться к серверу. Запустите backend: cd backend && pnpm dev',
+    });
+  }
   const isJson = res.headers.get('content-type')?.includes('application/json');
-  const body = isJson ? await res.json() : await res.text();
+  let body: unknown = isJson ? await res.json() : await res.text();
+
+  if (res.status === 401 && auth && !path.startsWith('/auth/')) {
+    const refreshed = await tryRefreshTokens();
+    if (refreshed) {
+      const token = useAuthStore.getState().accessToken;
+      if (token) finalHeaders.set('authorization', `Bearer ${token}`);
+      try {
+        res = await fetch(`${API_BASE}${path}`, { ...rest, headers: finalHeaders });
+      } catch {
+        throw new ApiRequestError({
+          statusCode: 0,
+          code: 'NETWORK_ERROR',
+          message: 'Не удалось подключиться к серверу. Запустите backend: cd backend && pnpm dev',
+        });
+      }
+      body = res.headers.get('content-type')?.includes('application/json')
+        ? await res.json()
+        : await res.text();
+    }
+  }
 
   if (!res.ok) {
     const err: ApiError =
       typeof body === 'object' && body
         ? {
             statusCode: res.status,
-            code: body.code ?? 'HTTP_ERROR',
-            message: body.message ?? res.statusText,
-            details: body.details,
+            code: (body as ApiError).code ?? 'HTTP_ERROR',
+            message: (body as ApiError).message ?? res.statusText,
+            details: (body as ApiError).details,
           }
         : { statusCode: res.status, code: 'HTTP_ERROR', message: String(body || res.statusText) };
     throw new ApiRequestError(err);

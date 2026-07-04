@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devos-worker
+  namespace: devos
+  labels:
+    app: devos-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devos-worker
+  template:
+    metadata:
+      labels:
+        app: devos-worker
+    spec:
+      containers:
+        - name: worker
+          image: devos/api:latest
+          command: ['node', 'dist/worker.js']
+          envFrom:
+            - secretRef:
+                name: devos-api-env
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

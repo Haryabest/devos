@@ -1,15 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException, Inject } from '@nestjs/common';
-import { PrismaClient, ProjectStatus, ProjectType } from '@prisma/client';
-
-export interface CreateProjectDto {
-  name: string;
-  description?: string;
-  type?: ProjectType;
-  status?: ProjectStatus;
-  clientId?: string;
-  startAt?: string;
-  dueAt?: string;
-}
+import { PrismaClient } from '@prisma/client';
+import type { CreateProjectDto, UpdateProjectDto, CreateMilestoneDto, UpdateMilestoneDto } from './projects.dto.js';
 
 @Injectable()
 export class ProjectsService {
@@ -64,7 +55,7 @@ export class ProjectsService {
     return project;
   }
 
-  async update(id: string, userId: string, dto: Partial<CreateProjectDto>) {
+  async update(id: string, userId: string, dto: UpdateProjectDto) {
     const project = await this.prisma.project.findUniqueOrThrow({ where: { id } });
     await this.assertMember(project.workspaceId, userId);
     return this.prisma.project.update({
@@ -81,5 +72,72 @@ export class ProjectsService {
     const project = await this.prisma.project.findUniqueOrThrow({ where: { id } });
     await this.assertMember(project.workspaceId, userId);
     await this.prisma.project.delete({ where: { id } });
+  }
+
+  private milestoneToApi(row: {
+    id: string;
+    projectId: string;
+    name: string;
+    version: string | null;
+    dueAt: Date | null;
+    releasedAt: Date | null;
+  }) {
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      name: row.name,
+      version: row.version,
+      dueAt: row.dueAt?.toISOString() ?? null,
+      releasedAt: row.releasedAt?.toISOString() ?? null,
+    };
+  }
+
+  async listMilestones(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUniqueOrThrow({ where: { id: projectId } });
+    await this.assertMember(project.workspaceId, userId);
+    const rows = await this.prisma.milestone.findMany({
+      where: { projectId },
+      orderBy: [{ dueAt: 'asc' }, { name: 'asc' }],
+    });
+    return rows.map((r) => this.milestoneToApi(r));
+  }
+
+  async createMilestone(projectId: string, userId: string, dto: CreateMilestoneDto) {
+    const project = await this.prisma.project.findUniqueOrThrow({ where: { id: projectId } });
+    await this.assertMember(project.workspaceId, userId);
+    const row = await this.prisma.milestone.create({
+      data: {
+        projectId,
+        name: dto.name,
+        version: dto.version,
+        dueAt: dto.dueAt ? new Date(dto.dueAt) : undefined,
+        releasedAt: dto.releasedAt ? new Date(dto.releasedAt) : undefined,
+      },
+    });
+    return this.milestoneToApi(row);
+  }
+
+  async updateMilestone(id: string, userId: string, dto: UpdateMilestoneDto) {
+    const existing = await this.prisma.milestone.findUniqueOrThrow({ where: { id } });
+    const project = await this.prisma.project.findUniqueOrThrow({ where: { id: existing.projectId } });
+    await this.assertMember(project.workspaceId, userId);
+    const row = await this.prisma.milestone.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        version: dto.version,
+        dueAt: dto.dueAt === undefined ? undefined : dto.dueAt ? new Date(dto.dueAt) : null,
+        releasedAt:
+          dto.releasedAt === undefined ? undefined : dto.releasedAt ? new Date(dto.releasedAt) : null,
+      },
+    });
+    return this.milestoneToApi(row);
+  }
+
+  async removeMilestone(id: string, userId: string) {
+    const existing = await this.prisma.milestone.findUniqueOrThrow({ where: { id } });
+    const project = await this.prisma.project.findUniqueOrThrow({ where: { id: existing.projectId } });
+    await this.assertMember(project.workspaceId, userId);
+    await this.prisma.milestone.delete({ where: { id } });
   }
 }

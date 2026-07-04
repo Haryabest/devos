@@ -12,6 +12,7 @@ import {
   type ParsedJoinInput,
 } from '@/lib/invite-link';
 import type { ProjectMember, Role, TeamInvite } from '@/shared/types';
+import type { ApiWorkspaceMember } from '@/lib/server-persist';
 import { useSaveStore } from '@/stores/save-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProjectsStore } from '@/stores/projects-store';
@@ -46,6 +47,7 @@ interface TeamState {
   mergePendingInvites: (fresh: TeamInvite[]) => void;
   getJoinedProjectIds: () => string[];
   isJoinedProject: (projectId: string) => boolean;
+  setFromServer: (members: ApiWorkspaceMember[], projectIds: string[]) => void;
 }
 
 function uid(): string {
@@ -289,6 +291,22 @@ export const useTeamStore = create<TeamState>()(
       },
 
       isJoinedProject: (projectId) => get().getJoinedProjectIds().includes(projectId),
+
+      setFromServer: (workspaceMembers, projectIds) => {
+        const members: ProjectMember[] = projectIds.flatMap((projectId) =>
+          workspaceMembers.map((m) => ({
+            id: `ws-${m.userId}-${projectId}`,
+            projectId,
+            userId: m.user.id,
+            email: m.user.email.toLowerCase(),
+            name: m.user.name,
+            role: m.role as Role,
+            joinedAt: m.joinedAt ?? new Date().toISOString(),
+          })),
+        );
+        set({ members });
+        markSaved();
+      },
     }),
     {
       name: 'devos:team',

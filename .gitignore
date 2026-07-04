@@ -15,6 +15,10 @@ src-tauri/gen/
 .env
 .env.local
 .env.*.local
+.env.prod
+.env.staging
+backend/infra/.env.prod
+backend/infra/.env.staging
 !.env.example
 
 # logs

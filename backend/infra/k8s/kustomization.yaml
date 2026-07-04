@@ -1,0 +1,12 @@
+# Apply order:
+#   kubectl apply -f namespace.yaml
+#   cp secrets.example.yaml secrets.yaml  # fill values
+#   kubectl apply -f secrets.yaml
+#   kubectl apply -f postgres.yaml -f redis.yaml -f minio.yaml
+#   kubectl apply -f deployment.yaml -f worker.yaml -f frontend.yaml
+#   kubectl apply -f ingress.yaml -f hpa.yaml
+#   kubectl apply -f servicemonitor.yaml  # if kube-prometheus-stack installed
+
+apiVersion: v1
+kind: List
+items: []

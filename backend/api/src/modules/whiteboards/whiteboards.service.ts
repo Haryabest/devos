@@ -1,9 +1,6 @@
 import { Injectable, ForbiddenException, Inject } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
-
-export interface UpsertWhiteboardDto {
-  content: object;
-}
+import type { UpsertWhiteboardDto } from './whiteboards.dto.js';
 
 @Injectable()
 export class WhiteboardsService {

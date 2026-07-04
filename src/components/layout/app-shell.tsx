@@ -30,6 +30,7 @@ const NAV = [
   { to: '/documents',  label: 'Документация',    icon: Icons.FileText },
   { to: '/clients',    label: 'Клиенты',         icon: Icons.Users },
   { to: '/calls',      label: 'Созвоны',         icon: Icons.Video },
+  { to: '/ai',         label: 'AI',              icon: Icons.Sparkles },
   { to: '/team',       label: 'Команда',         icon: Icons.User },
   { to: '/settings',   label: 'Настройки',       icon: Icons.Settings },
 ] as const;
@@ -164,7 +165,10 @@ export function AppShell() {
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="flex-1 overflow-auto"
+          className={cn(
+            'flex-1',
+            location.pathname.startsWith('/ai') ? 'overflow-hidden' : 'overflow-auto',
+          )}
         >
           <Outlet />
         </motion.main>

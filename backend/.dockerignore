@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+storage
+**/storage
+coverage
+.git

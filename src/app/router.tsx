@@ -21,6 +21,7 @@ import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
 import { ProfilePage } from '@/pages/profile';
 import { BackendBootstrap } from '@/components/backend-bootstrap';
+import { AiCenterPage } from '@/pages/ai-center';
 import { NotFoundPage } from '@/pages/not-found';
 
 export const router = createBrowserRouter([
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
       { path: '/clients/:clientId', element: <ClientDetailPage /> },
       { path: '/calls', element: <CallsPage /> },
       { path: '/team', element: <TeamPage /> },
+      { path: '/ai', element: <AiCenterPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/profile', element: <ProfilePage /> },
         ],

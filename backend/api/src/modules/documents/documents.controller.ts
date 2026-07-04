@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
-import { DocumentsService, type UpsertDocumentDto, type UpsertFolderDto } from './documents.service.js';
+import { DocumentsService } from './documents.service.js';
+import { UpsertDocumentDto, UpdateDocumentDto, UpsertFolderDto, UpdateFolderDto } from './documents.dto.js';
 import { JwtGuard } from '../auth/jwt.guard.js';
 
 @ApiTags('documents')
@@ -56,7 +57,7 @@ export class DocumentsController {
   @Patch('documents/:id')
   async updateDoc(
     @Param('id') id: string,
-    @Body() dto: Partial<UpsertDocumentDto>,
+    @Body() dto: UpdateDocumentDto,
     @Req() req: FastifyRequest & { userId?: string },
   ) {
     const userId = await this.uid(req);
@@ -96,7 +97,7 @@ export class DocumentsController {
   @Patch('document-folders/:id')
   async updateFolder(
     @Param('id') id: string,
-    @Body() dto: Partial<UpsertFolderDto>,
+    @Body() dto: UpdateFolderDto,
     @Req() req: FastifyRequest & { userId?: string },
   ) {
     const userId = await this.uid(req);

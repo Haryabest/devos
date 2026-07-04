@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBackendBootstrap } from '@/hooks/use-backend-bootstrap';
+import { useNotificationWs } from '@/hooks/use-notification-ws';
 import { useWorkspaceHydration } from '@/hooks/use-workspace-hydration';
 
 export function BackendBootstrap({ children }: { children?: React.ReactNode }) {
   const workspaceReady = useWorkspaceHydration();
   const { isBootstrapping } = useBackendBootstrap();
+  useNotificationWs();
 
   if (!workspaceReady || isBootstrapping) {
     return (

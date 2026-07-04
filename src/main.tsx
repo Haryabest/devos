@@ -19,7 +19,7 @@ ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
-        <RouterProvider router={router} />
+        <RouterProvider router={router} future={{ v7_startTransition: true }} />
       </TooltipProvider>
     </QueryClientProvider>
   </React.StrictMode>,

@@ -1,17 +1,7 @@
 import { Injectable, ForbiddenException, Inject } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { parseClientExtra, serializeClientExtra } from '../documents/documents.mapper.js';
-
-export interface UpsertClientDto {
-  name: string;
-  description?: string;
-  email?: string;
-  phone?: string;
-  contactList?: unknown[];
-  contracts?: unknown[];
-  files?: unknown[];
-  notes?: string;
-}
+import type { CreateClientDto, UpdateClientDto } from './clients.dto.js';
 
 @Injectable()
 export class ClientsService {
@@ -61,7 +51,7 @@ export class ClientsService {
     return clients.map((c) => this.toApi(c));
   }
 
-  async create(workspaceId: string, userId: string, dto: UpsertClientDto) {
+  async create(workspaceId: string, userId: string, dto: CreateClientDto) {
     await this.assertMember(workspaceId, userId);
     const client = await this.prisma.client.create({
       data: {
@@ -75,13 +65,13 @@ export class ClientsService {
           contracts: dto.contracts,
           files: dto.files,
           notes: dto.notes,
-        }),
+        }) as object,
       },
     });
     return this.toApi(client);
   }
 
-  async update(id: string, userId: string, dto: Partial<UpsertClientDto>) {
+  async update(id: string, userId: string, dto: UpdateClientDto) {
     const existing = await this.prisma.client.findUniqueOrThrow({ where: { id } });
     await this.assertMember(existing.workspaceId, userId);
     const prev = parseClientExtra(existing.contacts);
@@ -97,7 +87,7 @@ export class ClientsService {
           contracts: dto.contracts ?? prev.contracts,
           files: dto.files ?? prev.files,
           notes: dto.notes ?? prev.notes,
-        }),
+        }) as object,
       },
     });
     return this.toApi(client);
@@ -106,7 +96,7 @@ export class ClientsService {
   async remove(id: string, userId: string) {
     const existing = await this.prisma.client.findUniqueOrThrow({ where: { id } });
     await this.assertMember(existing.workspaceId, userId);
-    await this.prisma.client.updateMany({
+    await this.prisma.project.updateMany({
       where: { clientId: id },
       data: { clientId: null },
     });

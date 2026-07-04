@@ -13,6 +13,8 @@ import { DOC_FORMAT_ACCEPT } from '@/lib/doc-formats';
 import { exportDocAsMarkdown } from '@/lib/export-doc-markdown';
 import { formatDateTime } from '@/lib/format-date';
 import { useDocsStore } from '@/stores/docs-store';
+import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface DocsWorkspaceProps {
   projectId: string;
@@ -22,6 +24,7 @@ interface DocsWorkspaceProps {
 }
 
 export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsWorkspaceProps) {
+  const workspaceId = useAuthStore((s) => s.workspaceId);
   const docs = useDocsStore((s) => s.docs);
   const folders = useDocsStore((s) => s.folders);
   const create = useDocsStore((s) => s.create);
@@ -245,7 +248,24 @@ export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsW
         </div>
 
         {active && (
-          <DocDetailSidePanel
+          <aside className="flex w-80 shrink-0 flex-col gap-3 border-l border-border/60 bg-card/20 p-3">
+            {workspaceId && active.format === 'page' && (
+              <AiAssistantPanel
+                context="document"
+                workspaceId={workspaceId}
+                projectId={projectId}
+                documentId={active.id}
+                extra={{
+                  documentContent: draftContent,
+                  documentId: active.id,
+                  onDocumentApply: (content) => {
+                    setDraftContent(content);
+                    scheduleSave(active.id, { content });
+                  },
+                }}
+              />
+            )}
+            <DocDetailSidePanel
             doc={active}
             onDelete={() => requestRemoveDoc(active.id, active.title)}
             onAddTag={(tag) => addTag(active.id, tag)}
@@ -261,7 +281,8 @@ export function DocsWorkspace({ projectId, backTo, backLabel, className }: DocsW
             }}
             onAddAttachment={(a) => addAttachment(active.id, a)}
             onRemoveAttachment={(aid) => removeAttachment(active.id, aid)}
-          />
+            />
+          </aside>
         )}
       </div>
 

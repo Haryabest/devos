@@ -69,13 +69,6 @@ export class AuthService {
   // ── refresh ────────────────────────────────────────────────────────────────
 
   async refresh(rawToken: string, meta: { userAgent?: string; ip?: string } = {}) {
-    let payload: { sub: string };
-    try {
-      payload = this.jwt.verify(rawToken, { secret: env.JWT_REFRESH_SECRET });
-    } catch {
-      throw new UnauthorizedException('Refresh token невалиден или истёк');
-    }
-
     const tokenHash = this.hashToken(rawToken);
     const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
     if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
@@ -89,7 +82,7 @@ export class AuthService {
     });
 
     const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: payload.sub },
+      where: { id: stored.userId },
       select: { id: true, email: true, name: true, avatarUrl: true },
     });
 

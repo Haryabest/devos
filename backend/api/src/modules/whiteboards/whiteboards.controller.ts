@@ -1,7 +1,8 @@
 import { Controller, Get, Put, Body, Param, Query, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
-import { WhiteboardsService, type UpsertWhiteboardDto } from './whiteboards.service.js';
+import { WhiteboardsService } from './whiteboards.service.js';
+import { UpsertWhiteboardDto } from './whiteboards.dto.js';
 import { JwtGuard } from '../auth/jwt.guard.js';
 
 @ApiTags('whiteboards')

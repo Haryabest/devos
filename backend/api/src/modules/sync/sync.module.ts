@@ -6,5 +6,6 @@ import { CollabService } from './collab.service.js';
 @Module({
   imports: [AuthModule],
   providers: [CollabService, CollabGateway],
+  exports: [CollabService],
 })
 export class SyncModule {}

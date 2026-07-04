@@ -15,11 +15,23 @@ import {
   COLUMN_COLORS,
   createUid,
   migrateTasksState,
+  seedColumns,
   statusFromColumn,
   type NewAttachment,
   type NewColumn,
   type NewTask,
 } from '@/stores/tasks/constants';
+import { mapApiTask } from '@/lib/backend-sync';
+import {
+  isServerSyncEnabled,
+  persistTaskComment,
+  persistTaskCreate,
+  persistTaskDependencyAdd,
+  persistTaskDependencyRemove,
+  persistTaskRemove,
+  persistTaskReorder,
+  persistTaskUpdate,
+} from '@/lib/server-persist';
 
 function currentAuthor(): string {
   return useAuthStore.getState().user?.name ?? 'Система';
@@ -67,6 +79,7 @@ interface TasksState {
   toggleCommentReaction: (taskId: string, commentId: string, emoji: string) => void;
   addDependency: (taskId: string, dependsOnId: string) => void;
   removeDependency: (taskId: string, dependsOnId: string) => void;
+  setFromServer: (projectIds: string[], tasks: import('@/lib/backend-sync').ApiTask[]) => void;
 }
 
 let taskSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +88,24 @@ let pendingTaskPatch: Partial<Task> = {};
 
 function markSaved() {
   useSaveStore.getState().markSaved();
+}
+
+function syncTaskById(get: () => TasksState, id: string) {
+  if (!isServerSyncEnabled()) return;
+  const task = get().tasks.find((t) => t.id === id);
+  if (task) void persistTaskUpdate(task).catch(() => undefined);
+}
+
+function syncColumnReorder(get: () => TasksState, columnId: string) {
+  if (!isServerSyncEnabled()) return;
+  const col = get().columns.find((c) => c.id === columnId);
+  if (!col) return;
+  const items = get()
+    .tasks.filter((t) => t.columnId === columnId)
+    .sort((a, b) => a.order - b.order)
+    .map((t) => ({ id: t.id, order: t.order, status: t.status }));
+  if (items.length === 0) return;
+  void persistTaskReorder(col.projectId, items).catch(() => undefined);
 }
 
 export const useTasksStore = create<TasksState>()(
@@ -160,6 +191,17 @@ export const useTasksStore = create<TasksState>()(
         };
         set((s) => ({ tasks: [...s.tasks, task] }));
         markSaved();
+        if (isServerSyncEnabled()) {
+          void persistTaskCreate(input.projectId, task)
+            .then((saved) => {
+              if (saved && saved.id !== task.id) {
+                useTasksStore.setState((s) => ({
+                  tasks: s.tasks.map((t) => (t.id === task.id ? saved : t)),
+                }));
+              }
+            })
+            .catch(() => undefined);
+        }
         return task;
       },
       update: (id, patch, logHistory = true) => {
@@ -185,6 +227,7 @@ export const useTasksStore = create<TasksState>()(
           }),
         }));
         markSaved();
+        syncTaskById(get, id);
       },
       scheduleUpdate: (id, patch) => {
         if (pendingTaskId && pendingTaskId !== id) {
@@ -198,6 +241,7 @@ export const useTasksStore = create<TasksState>()(
           useSaveStore.getState().markSaving();
           if (pendingTaskId) {
             get().update(pendingTaskId, pendingTaskPatch);
+            syncTaskById(get, pendingTaskId);
           }
           pendingTaskId = null;
           pendingTaskPatch = {};
@@ -212,6 +256,7 @@ export const useTasksStore = create<TasksState>()(
         if (pendingTaskId) {
           useSaveStore.getState().markSaving();
           get().update(pendingTaskId, pendingTaskPatch);
+          syncTaskById(get, pendingTaskId);
           pendingTaskId = null;
           pendingTaskPatch = {};
         }
@@ -226,6 +271,7 @@ export const useTasksStore = create<TasksState>()(
             })),
         }));
         markSaved();
+        if (isServerSyncEnabled()) void persistTaskRemove(id).catch(() => undefined);
       },
       removeByProject: (projectId) => {
         set((s) => ({
@@ -264,6 +310,7 @@ export const useTasksStore = create<TasksState>()(
           };
         });
         markSaved();
+        syncColumnReorder(get, columnId);
       },
       reorderTasks: (columnId, ids) => {
         set((s) => ({
@@ -274,6 +321,7 @@ export const useTasksStore = create<TasksState>()(
           }),
         }));
         markSaved();
+        syncColumnReorder(get, columnId);
       },
 
       addAttachment: (taskId, input) => {
@@ -340,6 +388,7 @@ export const useTasksStore = create<TasksState>()(
           }),
         }));
         markSaved();
+        if (isServerSyncEnabled()) void persistTaskComment(taskId, trimmed).catch(() => undefined);
       },
       addCommentReply: (taskId, parentCommentId, text) => {
         get().addComment(taskId, text, parentCommentId);
@@ -379,6 +428,7 @@ export const useTasksStore = create<TasksState>()(
           ),
         }));
         markSaved();
+        if (isServerSyncEnabled()) void persistTaskDependencyAdd(taskId, dependsOnId).catch(() => undefined);
       },
       removeDependency: (taskId, dependsOnId) => {
         set((s) => ({
@@ -387,6 +437,27 @@ export const useTasksStore = create<TasksState>()(
               ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== dependsOnId) }
               : t,
           ),
+        }));
+        markSaved();
+        if (isServerSyncEnabled()) void persistTaskDependencyRemove(taskId, dependsOnId).catch(() => undefined);
+      },
+      setFromServer: (projectIds, apiTasks) => {
+        const columns = projectIds.flatMap((projectId) => seedColumns(projectId));
+        const colByProjectStatus = new Map<string, string>();
+        for (const col of columns) {
+          colByProjectStatus.set(`${col.projectId}:${col.statusKey}`, col.id);
+        }
+        const tasks = apiTasks.map((t) => {
+          const columnId =
+            colByProjectStatus.get(`${t.projectId}:${t.status}`) ??
+            colByProjectStatus.get(`${t.projectId}:TODO`) ??
+            columns.find((c) => c.projectId === t.projectId)?.id ??
+            '';
+          return mapApiTask(t, columnId);
+        });
+        set((s) => ({
+          columns: [...s.columns.filter((c) => !projectIds.includes(c.projectId)), ...columns],
+          tasks: [...s.tasks.filter((t) => !projectIds.includes(t.projectId)), ...tasks],
         }));
         markSaved();
       },

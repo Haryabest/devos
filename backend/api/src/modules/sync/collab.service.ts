@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { WebSocket } from 'ws';
 import { env } from '../../config/env.js';
+import type { CollabRedisMessage } from '../ws-bridge/ws-redis-bridge.service.js';
+import { WsRedisBridgeService } from '../ws-bridge/ws-redis-bridge.service.js';
 import type {
   CollabClientMeta,
   CollabHostLeft,
@@ -23,7 +25,10 @@ export class CollabService {
   private readonly clients = new Map<WebSocket, CollabClientMeta>();
   private readonly rooms = new Map<string, RoomEntry[]>();
 
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly wsBridge: WsRedisBridgeService,
+  ) {}
 
   register(client: WebSocket, meta: CollabClientMeta) {
     this.clients.set(client, meta);
@@ -80,11 +85,11 @@ export class CollabService {
 
   private notifyHostLeft(projectId: string, data: CollabHostLeft, exclude: WebSocket) {
     const envelope = JSON.stringify({ event: 'host-left', data });
-    for (const entry of this.rooms.get(projectId) ?? []) {
-      if (entry.client === exclude || entry.role !== 'guest') continue;
-      if (entry.client.readyState !== entry.client.OPEN) continue;
-      entry.client.send(envelope);
-    }
+    this.deliverCollabLocally({
+      envelope,
+      projectId,
+      excludeClientId: this.clients.get(exclude)?.clientId,
+    });
   }
 
   resolveMeta(clientId: string, token?: string | null): CollabClientMeta {
@@ -107,19 +112,16 @@ export class CollabService {
 
   broadcastSync(from: WebSocket, message: SyncMessage) {
     const envelope = JSON.stringify({ event: 'sync', data: message });
-    for (const [peer, meta] of this.clients) {
-      if (peer === from || peer.readyState !== peer.OPEN) continue;
-      if (meta.clientId === message.clientId) continue;
-      peer.send(envelope);
-    }
+    const excludeClientId = this.clients.get(from)?.clientId;
+    this.deliverCollabLocally({ envelope, excludeClientId });
+    this.wsBridge.publishCollab({ envelope, excludeClientId });
   }
 
   requestSync(from: WebSocket) {
     const envelope = JSON.stringify({ event: 'sync-request', data: {} });
-    for (const [peer] of this.clients) {
-      if (peer === from || peer.readyState !== peer.OPEN) continue;
-      peer.send(envelope);
-    }
+    const excludeClientId = this.clients.get(from)?.clientId;
+    this.deliverCollabLocally({ envelope, excludeClientId });
+    this.wsBridge.publishCollab({ envelope, excludeClientId });
   }
 
   broadcastPresence(from: WebSocket, data: Record<string, unknown>) {
@@ -130,15 +132,16 @@ export class CollabService {
       data: { ...data, clientId: meta.clientId, userId: meta.userId },
     });
     const projectId = data.projectId as string | undefined;
-    for (const [peer, peerMeta] of this.clients) {
-      if (peer === from || peer.readyState !== peer.OPEN) continue;
-      if (peerMeta.clientId === meta.clientId) continue;
-      if (projectId) {
-        const inRoom = (this.rooms.get(projectId) ?? []).some((e) => e.client === peer);
-        if (!inRoom) continue;
-      }
-      peer.send(envelope);
-    }
+    this.deliverCollabLocally({
+      envelope,
+      excludeClientId: meta.clientId,
+      projectId,
+    });
+    this.wsBridge.publishCollab({
+      envelope,
+      excludeClientId: meta.clientId,
+      projectId,
+    });
   }
 
   broadcastRaw(from: WebSocket, event: string, data: Record<string, unknown>) {
@@ -146,13 +149,38 @@ export class CollabService {
     if (!meta) return;
     const envelope = JSON.stringify({ event, data: { ...data, from: meta.clientId } });
     const roomKey = (data.projectId ?? data.roomId) as string | undefined;
+    this.deliverCollabLocally({
+      envelope,
+      excludeClientId: meta.clientId,
+      roomKey,
+    });
+    this.wsBridge.publishCollab({
+      envelope,
+      excludeClientId: meta.clientId,
+      roomKey,
+    });
+  }
+
+  deliverFromRedis(message: CollabRedisMessage) {
+    this.deliverCollabLocally(message);
+  }
+
+  private deliverCollabLocally(message: CollabRedisMessage) {
+    const { envelope, excludeClientId, projectId, roomKey } = message;
     for (const [peer, peerMeta] of this.clients) {
-      if (peer === from || peer.readyState !== peer.OPEN) continue;
-      if (peerMeta.clientId === meta.clientId) continue;
+      if (peer.readyState !== peer.OPEN) continue;
+      if (excludeClientId && peerMeta.clientId === excludeClientId) continue;
+
+      if (projectId) {
+        const inRoom = (this.rooms.get(projectId) ?? []).some((e) => e.client === peer);
+        if (!inRoom) continue;
+      }
+
       if (roomKey) {
         const inRoom = (this.rooms.get(roomKey) ?? []).some((e) => e.client === peer);
         if (!inRoom) continue;
       }
+
       peer.send(envelope);
     }
   }

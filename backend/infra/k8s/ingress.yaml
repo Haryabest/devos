@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devos
+  namespace: devos
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "86400"
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/affinity-mode: persistent
+    nginx.ingress.kubernetes.io/session-cookie-name: devos-api
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devos.example.com
+      secretName: devos-tls
+  rules:
+    - host: devos.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: devos-api
+                port:
+                  number: 3333
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: devos-api
+                port:
+                  number: 3333
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: devos-api
+                port:
+                  number: 3333
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: devos-api
+                port:
+                  number: 3333
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devos-frontend
+                port:
+                  number: 80

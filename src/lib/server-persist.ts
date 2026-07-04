@@ -1,7 +1,10 @@
 import { api } from '@/lib/api';
 import type { Client, Doc, DocFolder, DocFormat, DocRevision } from '@/shared/types';
-import type { Attachment } from '@/shared/types';
+import type { Attachment, RoadmapCard, Task } from '@/shared/types';
+import type { Role } from '@/shared/types';
+import { mapApiTask, mapTaskToApi, type ApiTask } from '@/lib/backend-sync';
 import { useAuthStore } from '@/stores/auth-store';
+import type { AppNotification } from '@/stores/notifications-store';
 
 export interface ApiDoc {
   id: string;
@@ -239,6 +242,206 @@ export async function fetchWorkspaceWhiteboards(wsId: string) {
     projectId: row.projectId,
     ...(row.content as object),
   })) as import('@/shared/types/whiteboard').WhiteboardData[];
+}
+
+export async function fetchWorkspaceTasks(projectIds: string[]) {
+  if (projectIds.length === 0) return [];
+  const rows = await Promise.all(projectIds.map((id) => api<ApiTask[]>(`/projects/${id}/tasks`)));
+  return rows.flat();
+}
+
+export async function persistTaskCreate(projectId: string, task: Task): Promise<Task | null> {
+  const saved = await api<ApiTask>(`/projects/${projectId}/tasks`, {
+    method: 'POST',
+    body: JSON.stringify(mapTaskToApi(task)),
+  });
+  if (task.order > 0 || task.status !== saved.status) {
+    await persistTaskReorder(projectId, [{ id: saved.id, order: task.order, status: task.status }]);
+  }
+  return mapApiTask({ ...saved, order: task.order, status: task.status }, task.columnId);
+}
+
+export async function persistTaskUpdate(task: Task): Promise<void> {
+  await api<ApiTask>(`/tasks/${task.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(mapTaskToApi(task)),
+  });
+}
+
+export async function persistTaskRemove(id: string): Promise<void> {
+  await api<void>(`/tasks/${id}`, { method: 'DELETE' });
+}
+
+export async function persistTaskComment(taskId: string, body: string): Promise<void> {
+  await api(`/tasks/${taskId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function persistTaskDependencyAdd(taskId: string, toId: string): Promise<void> {
+  await api(`/tasks/${taskId}/dependencies`, {
+    method: 'POST',
+    body: JSON.stringify({ toId }),
+  });
+}
+
+export async function persistTaskDependencyRemove(taskId: string, toId: string): Promise<void> {
+  await api<void>(`/tasks/${taskId}/dependencies/${toId}`, { method: 'DELETE' });
+}
+
+export async function persistTaskReorder(
+  projectId: string,
+  items: { id: string; order: number; status: import('@/shared/types').TaskStatus }[],
+): Promise<void> {
+  await api(`/projects/${projectId}/tasks/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
+  });
+}
+
+export interface ApiNotification {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  createdAt: string;
+}
+
+function mapApiNotification(n: ApiNotification): AppNotification {
+  const data = n.data ?? {};
+  const projectId = typeof data.projectId === 'string' ? data.projectId : undefined;
+  const taskId = typeof data.taskId === 'string' ? data.taskId : undefined;
+  const href =
+    taskId && projectId
+      ? `/projects/${projectId}/tasks/${taskId}`
+      : projectId
+        ? `/projects/${projectId}`
+        : undefined;
+  const kind = (['invite', 'deadline', 'mention', 'sync', 'info'] as const).includes(
+    n.kind as AppNotification['kind'],
+  )
+    ? (n.kind as AppNotification['kind'])
+    : 'info';
+  return {
+    id: n.id,
+    kind,
+    title: n.title,
+    body: n.body ?? '',
+    href,
+    read: n.read,
+    createdAt: n.createdAt,
+  };
+}
+
+export async function fetchWorkspaceNotifications(): Promise<AppNotification[]> {
+  const rows = await api<ApiNotification[]>('/notifications');
+  return rows.map(mapApiNotification);
+}
+
+export async function persistNotificationRead(id: string): Promise<void> {
+  await api(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export interface ApiMilestone {
+  id: string;
+  projectId: string;
+  name: string;
+  version: string | null;
+  dueAt: string | null;
+  releasedAt: string | null;
+}
+
+export async function fetchProjectRoadmap(projectId: string): Promise<ApiMilestone[]> {
+  return api<ApiMilestone[]>(`/projects/${projectId}/milestones`);
+}
+
+export async function persistRoadmapCardCreate(
+  projectId: string,
+  card: RoadmapCard,
+): Promise<ApiMilestone | null> {
+  return api<ApiMilestone>(`/projects/${projectId}/milestones`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name: card.title,
+      version: card.description || undefined,
+    }),
+  });
+}
+
+export async function persistRoadmapCardUpdate(card: RoadmapCard, released: boolean): Promise<void> {
+  await api<ApiMilestone>(`/projects/${card.projectId}/milestones/${card.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      name: card.title,
+      version: card.description || undefined,
+      releasedAt: released ? new Date().toISOString() : null,
+    }),
+  });
+}
+
+export async function persistRoadmapCardRemove(projectId: string, id: string): Promise<void> {
+  await api<void>(`/projects/${projectId}/milestones/${id}`, { method: 'DELETE' });
+}
+
+export interface ApiWorkspaceMember {
+  id: string;
+  userId: string;
+  role: Role;
+  joinedAt: string | null;
+  user: { id: string; email: string; name: string; avatarUrl: string | null };
+}
+
+export async function fetchWorkspaceMembers(wsId: string): Promise<ApiWorkspaceMember[]> {
+  const ws = await api<{
+    members: Array<{
+      id: string;
+      userId: string;
+      role: string;
+      invitedAt: string;
+      joinedAt: string | null;
+      user: { id: string; email: string; name: string; avatarUrl: string | null };
+    }>;
+  }>(`/workspaces/${wsId}`);
+  return ws.members.map((m) => ({
+    id: m.id,
+    userId: m.userId,
+    role: m.role as Role,
+    joinedAt: m.joinedAt ?? m.invitedAt,
+    user: m.user,
+  }));
+}
+
+export interface ApiIntegration {
+  id: string;
+  provider: 'GITHUB' | 'GITLAB' | 'FIGMA';
+  externalId: string | null;
+  scopes: string[];
+  connected: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getIntegrations(wsId: string): Promise<ApiIntegration[]> {
+  return api<ApiIntegration[]>(`/integrations?workspaceId=${encodeURIComponent(wsId)}`);
+}
+
+export async function connectIntegrationOAuthUrl(
+  provider: string,
+  wsId: string,
+): Promise<string> {
+  const res = await api<{ url: string }>(
+    `/integrations/${provider.toLowerCase()}/connect?workspaceId=${encodeURIComponent(wsId)}`,
+  );
+  return res.url;
+}
+
+export async function disconnectIntegration(provider: string, wsId: string): Promise<void> {
+  await api<void>(`/integrations/${provider.toLowerCase()}?workspaceId=${encodeURIComponent(wsId)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function persistWhiteboard(board: import('@/shared/types/whiteboard').WhiteboardData): Promise<void> {

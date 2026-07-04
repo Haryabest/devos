@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ConfirmDeleteDialog, type DeleteConfirmState } from '@/components/ui/confirm-delete-dialog';
 import { getInviteLink, requestCollaborationSync, subscribeSyncStatus } from '@/lib/sync-engine';
 import { syncGlobalInvitesIntoTeamStore } from '@/lib/global-invite-pool';
 import { ACCEPT_INVITE_ERRORS, parseJoinSearchParams } from '@/lib/invite-link';
+import { fetchWorkspaceMembers, isServerSyncEnabled } from '@/lib/server-persist';
 import { useProjectsStore } from '@/stores/projects-store';
 import { useTeamStore } from '@/stores/team-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -32,6 +34,21 @@ export function TeamPage() {
   const updateMemberRole = useTeamStore((s) => s.updateMemberRole);
   const joinSyncRoom = useTeamStore((s) => s.joinSyncRoom);
   const mergePendingInvites = useTeamStore((s) => s.mergePendingInvites);
+  const setFromServer = useTeamStore((s) => s.setFromServer);
+  const workspaceId = useAuthStore((s) => s.workspaceId);
+  const serverSync = isServerSyncEnabled();
+
+  const membersQuery = useQuery({
+    queryKey: ['workspace-members', workspaceId],
+    queryFn: () => fetchWorkspaceMembers(workspaceId!),
+    enabled: serverSync && !!workspaceId,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (!serverSync || !membersQuery.data || projects.length === 0) return;
+    setFromServer(membersQuery.data, projects.map((p) => p.id));
+  }, [membersQuery.data, projects, serverSync, setFromServer]);
 
   const [syncLive, setSyncLive] = useState(false);
   const [joinCode, setJoinCode] = useState(params.get('join') ?? '');

@@ -35,7 +35,7 @@ const schema = z.object({
 
   CORS_ORIGIN: z
     .string()
-    .default('http://localhost:1420,http://localhost:5173')
+    .default('http://localhost:1420,http://127.0.0.1:1420,http://localhost:5173,http://127.0.0.1:5173')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
 
   DATABASE_URL: z.string().min(1),
@@ -62,10 +62,26 @@ const schema = z.object({
 
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
+  GITHUB_WEBHOOK_SECRET: z.string().optional(),
   GITLAB_CLIENT_ID: z.string().optional(),
   GITLAB_CLIENT_SECRET: z.string().optional(),
   FIGMA_CLIENT_ID: z.string().optional(),
   FIGMA_CLIENT_SECRET: z.string().optional(),
+
+  /** Rate limit: max requests per TTL window (global). */
+  RATE_LIMIT_TTL_MS: z.coerce.number().int().min(1000).default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(120),
+
+  /** Observability */
+  SENTRY_DSN: z.string().url().optional(),
+
+  /** SMTP — если не задан, email логируется в stdout worker'а */
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

@@ -4,6 +4,13 @@ import { createScopedPersistStorage } from '@/lib/scoped-storage';
 import type { RoadmapCard, RoadmapColumn } from '@/shared/types';
 import { useSaveStore } from '@/stores/save-store';
 import { COLUMN_COLORS, createUid } from '@/stores/tasks/constants';
+import {
+  isServerSyncEnabled,
+  persistRoadmapCardCreate,
+  persistRoadmapCardRemove,
+  persistRoadmapCardUpdate,
+  type ApiMilestone,
+} from '@/lib/server-persist';
 
 const DEFAULT_ROADMAP_COLUMNS = [
   { name: 'Planned', color: COLUMN_COLORS[0]! },
@@ -22,6 +29,23 @@ interface RoadmapState {
   removeCard: (id: string) => void;
   moveCard: (id: string, columnId: string, newIndex: number) => void;
   removeByProject: (projectId: string) => void;
+  setFromServer: (projectId: string, milestones: ApiMilestone[]) => void;
+}
+
+function doneColumnId(columns: RoadmapColumn[], projectId: string) {
+  return (
+    columns.find((c) => c.projectId === projectId && c.name === 'Done')?.id ??
+    columns.find((c) => c.projectId === projectId)?.id ??
+    ''
+  );
+}
+
+function plannedColumnId(columns: RoadmapColumn[], projectId: string) {
+  return (
+    columns.find((c) => c.projectId === projectId && c.name === 'Planned')?.id ??
+    columns.find((c) => c.projectId === projectId)?.id ??
+    ''
+  );
 }
 
 export const useRoadmapStore = create<RoadmapState>()(
@@ -82,6 +106,17 @@ export const useRoadmapStore = create<RoadmapState>()(
         };
         set((s) => ({ cards: [...s.cards, card] }));
         useSaveStore.getState().markSaved();
+        if (isServerSyncEnabled()) {
+          void persistRoadmapCardCreate(input.projectId, card)
+            .then((saved) => {
+              if (saved && saved.id !== card.id) {
+                useRoadmapStore.setState((s) => ({
+                  cards: s.cards.map((c) => (c.id === card.id ? { ...c, id: saved.id } : c)),
+                }));
+              }
+            })
+            .catch(() => undefined);
+        }
         return card;
       },
 
@@ -90,11 +125,22 @@ export const useRoadmapStore = create<RoadmapState>()(
           cards: s.cards.map((c) => (c.id === id ? { ...c, ...patch } : c)),
         }));
         useSaveStore.getState().markSaved();
+        if (isServerSyncEnabled()) {
+          const prev = get().cards.find((c) => c.id === id);
+          if (!prev) return;
+          const next = { ...prev, ...patch };
+          const doneId = doneColumnId(get().columns, next.projectId);
+          void persistRoadmapCardUpdate(next, next.columnId === doneId).catch(() => undefined);
+        }
       },
 
       removeCard: (id) => {
+        const card = get().cards.find((c) => c.id === id);
         set((s) => ({ cards: s.cards.filter((c) => c.id !== id) }));
         useSaveStore.getState().markSaved();
+        if (isServerSyncEnabled() && card) {
+          void persistRoadmapCardRemove(card.projectId, id).catch(() => undefined);
+        }
       },
 
       moveCard: (id, columnId, newIndex) => {
@@ -113,6 +159,12 @@ export const useRoadmapStore = create<RoadmapState>()(
           };
         });
         useSaveStore.getState().markSaved();
+        if (isServerSyncEnabled()) {
+          const card = get().cards.find((c) => c.id === id);
+          if (!card) return;
+          const doneId = doneColumnId(get().columns, card.projectId);
+          void persistRoadmapCardUpdate(card, card.columnId === doneId).catch(() => undefined);
+        }
       },
 
       removeByProject: (projectId) => {
@@ -120,6 +172,27 @@ export const useRoadmapStore = create<RoadmapState>()(
           columns: s.columns.filter((c) => c.projectId !== projectId),
           cards: s.cards.filter((c) => c.projectId !== projectId),
         }));
+      },
+
+      setFromServer: (projectId, milestones) => {
+        get().seedProject(projectId);
+        const cols = get().columns.filter((c) => c.projectId === projectId);
+        const plannedId = plannedColumnId(cols, projectId);
+        const doneId = doneColumnId(cols, projectId);
+        const cards: RoadmapCard[] = milestones.map((m, i) => ({
+          id: m.id,
+          projectId,
+          columnId: m.releasedAt ? doneId : plannedId,
+          title: m.name,
+          description: m.version ?? '',
+          order: i,
+          createdAt: m.dueAt ?? m.releasedAt ?? new Date().toISOString(),
+        }));
+        set((s) => ({
+          columns: [...s.columns.filter((c) => c.projectId !== projectId), ...cols],
+          cards: [...s.cards.filter((c) => c.projectId !== projectId), ...cards],
+        }));
+        useSaveStore.getState().markSaved();
       },
     }),
     {

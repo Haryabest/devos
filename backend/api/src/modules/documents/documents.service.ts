@@ -1,20 +1,7 @@
 import { Injectable, ForbiddenException, Inject } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { parseDocPayload, serializeDocPayload, type DocPayloadJson } from './documents.mapper.js';
-
-export interface UpsertDocumentDto {
-  projectId: string;
-  folderId?: string | null;
-  title: string;
-  tags?: string[];
-  payload: DocPayloadJson;
-}
-
-export interface UpsertFolderDto {
-  projectId: string;
-  parentId?: string | null;
-  name: string;
-}
+import { parseDocPayload, serializeDocPayload } from './documents.mapper.js';
+import type { UpsertDocumentDto, UpdateDocumentDto, UpsertFolderDto, UpdateFolderDto } from './documents.dto.js';
 
 @Injectable()
 export class DocumentsService {
@@ -95,7 +82,7 @@ export class DocumentsService {
     return this.toApi(doc);
   }
 
-  async update(id: string, userId: string, dto: Partial<UpsertDocumentDto>) {
+  async update(id: string, userId: string, dto: UpdateDocumentDto) {
     const existing = await this.prisma.document.findUniqueOrThrow({ where: { id } });
     await this.assertMember(existing.workspaceId, userId);
 
@@ -158,7 +145,7 @@ export class DocumentsService {
     };
   }
 
-  async updateFolder(id: string, userId: string, dto: Partial<UpsertFolderDto>) {
+  async updateFolder(id: string, userId: string, dto: UpdateFolderDto) {
     const existing = await this.prisma.documentFolder.findUniqueOrThrow({ where: { id } });
     await this.assertMember(existing.workspaceId, userId);
     const folder = await this.prisma.documentFolder.update({

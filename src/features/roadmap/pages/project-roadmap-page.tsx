@@ -11,9 +11,12 @@ import { useProjectsStore } from '@/stores/projects-store';
 import { useRoadmapStore } from '@/stores/roadmap-store';
 import { RoadmapColumn } from '@/features/roadmap/components/roadmap-column';
 import { useRoadmapDnd } from '@/features/roadmap/hooks/use-roadmap-dnd';
+import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
+import { useAuthStore } from '@/stores/auth-store';
 import type { RoadmapCard } from '@/shared/types';
 
 export function ProjectRoadmapPage() {
+  const workspaceId = useAuthStore((s) => s.workspaceId);
   const { projectId } = useParams();
   const navigate = useNavigate();
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId));
@@ -72,6 +75,15 @@ export function ProjectRoadmapPage() {
         <p className="text-sm text-muted-foreground">
           Kanban-доска для планирования этапов и роадмапа проекта.
         </p>
+        {workspaceId && (
+          <div className="mt-3 max-w-lg">
+            <AiAssistantPanel
+              context="roadmap"
+              workspaceId={workspaceId}
+              projectId={project.id}
+            />
+          </div>
+        )}
       </PageTopBar>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden">

@@ -39,14 +39,16 @@ import {
   useWhiteboardPresence,
   WhiteboardPresenceOverlay,
 } from '@/features/whiteboard/components/whiteboard-presence';
+import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
 
 const PEN_COLOR = '#6366f1';
 
 interface WhiteboardWorkspaceProps {
   projectId: string;
+  workspaceId?: string | null;
 }
 
-export function WhiteboardWorkspace({ projectId }: WhiteboardWorkspaceProps) {
+export function WhiteboardWorkspace({ projectId, workspaceId }: WhiteboardWorkspaceProps) {
   const board = useWhiteboardStore((s) => s.getBoard(projectId));
   const addStroke = useWhiteboardStore((s) => s.addStroke);
   const addNote = useWhiteboardStore((s) => s.addNote);
@@ -335,6 +337,17 @@ export function WhiteboardWorkspace({ projectId }: WhiteboardWorkspaceProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border/60 bg-card">
       <WhiteboardCollabBar projectId={projectId} hostUserId={user?.id} />
+      {workspaceId && (
+        <div className="border-b border-border/60 px-3 py-1.5">
+          <AiAssistantPanel
+            context="whiteboard"
+            workspaceId={workspaceId}
+            projectId={projectId}
+            compact
+            extra={{ boardContent: board }}
+          />
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2">
         {tools.map((t) => (
           <Button

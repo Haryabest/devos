@@ -4,8 +4,10 @@ import { PageTopBar } from '@/components/layout/page-top-bar';
 import { WhiteboardWorkspace } from '@/features/whiteboard/components/whiteboard-workspace';
 import { WhiteboardVersionsBar } from '@/features/whiteboard/components/whiteboard-versions-bar';
 import { useProjectsStore } from '@/stores/projects-store';
+import { useAuthStore } from '@/stores/auth-store';
 
 export function ProjectWhiteboardPage() {
+  const workspaceId = useAuthStore((s) => s.workspaceId);
   const { projectId } = useParams();
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId));
 
@@ -31,7 +33,7 @@ export function ProjectWhiteboardPage() {
       </PageTopBar>
       <div className="min-h-0 flex-1 px-6 pb-6">
         <WhiteboardVersionsBar projectId={projectId} />
-        <WhiteboardWorkspace projectId={projectId} />
+        <WhiteboardWorkspace projectId={projectId} workspaceId={workspaceId} />
       </div>
     </div>
   );

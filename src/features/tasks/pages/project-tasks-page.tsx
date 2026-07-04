@@ -16,12 +16,15 @@ import { TaskTimelineView } from '@/features/tasks/components/task-timeline-view
 import { TasksPageHeader } from '@/features/tasks/components/tasks-page-header';
 import { applyTaskFilter, type TaskFilter, type TaskView } from '@/features/tasks/constants';
 import { TaskFormDialog } from '@/features/tasks/components/task-form-dialog';
+import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
+import { useAuthStore } from '@/stores/auth-store';
 import { useProjectTasksDnd } from '@/features/tasks/hooks/use-project-tasks-dnd';
 import { useProjectsStore } from '@/stores/projects-store';
 import { seedColumns, useTasksStore } from '@/stores/tasks-store';
 import type { Task, TaskColumn } from '@/shared/types';
 
 export function ProjectTasksPage() {
+  const workspaceId = useAuthStore((s) => s.workspaceId);
   const { projectId } = useParams();
   const navigate = useNavigate();
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId));
@@ -225,6 +228,16 @@ export function ProjectTasksPage() {
         siblingTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
         onCreated={(id) => navigate(`/projects/${projectId}/tasks/${id}`)}
       />
+
+      {workspaceId && (
+        <div className="fixed bottom-6 right-6 z-30 w-full max-w-md">
+          <AiAssistantPanel
+            context="task"
+            workspaceId={workspaceId}
+            projectId={project.id}
+          />
+        </div>
+      )}
     </div>
   );
 }

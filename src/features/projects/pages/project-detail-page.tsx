@@ -16,8 +16,11 @@ import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { ProjectDeadlinesCard } from '@/features/projects/components/project-deadlines-card';
 import { ProjectGitDashboard } from '@/features/projects/components/project-git-dashboard';
 import { ProjectIntegrationsPanel } from '@/features/projects/components/project-integrations-panel';
+import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
+import { useAuthStore } from '@/stores/auth-store';
 
 export function ProjectDetailPage() {
+  const workspaceId = useAuthStore((s) => s.workspaceId);
   const { projectId } = useParams();
   const navigate = useNavigate();
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId));
@@ -67,6 +70,14 @@ export function ProjectDetailPage() {
       />
 
       <ProjectModulesSection modules={modules} className="lg:grid-cols-5" />
+
+      {workspaceId && (
+        <AiAssistantPanel
+          context="project"
+          workspaceId={workspaceId}
+          projectId={project.id}
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ProjectDeadlinesCard project={project} />

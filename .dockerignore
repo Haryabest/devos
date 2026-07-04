@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+backend/infra/.env.prod
+backend/infra/.env.staging
+src-tauri/target
+coverage
+.git
+backend/storage
+**/.pnpm-store

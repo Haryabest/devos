@@ -2,9 +2,19 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
     "noEmit": false,
     "incremental": true
   },
-  "exclude": ["**/*.spec.ts", "**/*.test.ts", "node_modules", "dist"]
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.integration.spec.ts",
+    "**/*.e2e.spec.ts",
+    "**/*.load.spec.ts",
+    "src/test/**",
+    "node_modules",
+    "dist"
+  ]
 }
